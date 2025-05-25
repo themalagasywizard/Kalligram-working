@@ -18,32 +18,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS - Production Build -->
+    <link rel="stylesheet" href="/lib/tailwind-built.css">
     
     <!-- Simple Dark Mode CSS -->
     <link rel="stylesheet" href="/lib/simple-dark-mode.css">
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#4B5EAA',
-                        primaryLight: '#E6E9F0',
-                        secondary: '#6B7280',
-                        accent: '#F472B6',
-                        background: '#F9FAFB',
-                        textPrimary: '#1F2937',
-                        textSecondary: '#9CA3AF',
-                        success: '#34D399',
-                        error: '#EF4444',
-                        warning: '#FBBF24',
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind config moved to tailwind.config.js -->
     <!-- Custom Styles -->
     <style>
         :root {
@@ -653,13 +634,13 @@
 <body class="h-screen flex flex-col">
     <!-- Import Supabase client and make it available globally -->
     <script type="module">
-        import { projects, chapters, characters, auth, locations, timelineEvents } from './lib/supabase.js';
+        import { projects, chapters, characters, auth, locations, timelineEvents } from './lib/unified-supabase.js';
         // Make services available to non-module scripts
         window.supabaseServices = { auth, projects, chapters, characters, locations, timelineEvents };
     </script>
     
     <script type="module">
-        import { projects, chapters, characters, auth } from './lib/supabase.js';
+        import { projects, chapters, characters, auth } from './lib/unified-supabase.js';
         
         // Global state management
         const appState = {
@@ -1715,7 +1696,7 @@
     </script>
 
     <script type="module">
-        import { auth, profiles } from './lib/supabase.js';
+        import { auth, profiles } from './lib/unified-supabase.js';
         
         // Initialize with a default user avatar and handle sign out
         document.addEventListener('DOMContentLoaded', () => {
