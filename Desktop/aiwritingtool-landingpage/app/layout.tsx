@@ -2,6 +2,7 @@
 
 import { Inter, Merriweather } from 'next/font/google'
 import { ThemeProvider } from 'next-themes'
+import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
 const inter = Inter({ 
@@ -31,11 +32,12 @@ export default function RootLayout({
       <body className={`${inter.variable} ${merriweather.variable} font-sans transition-theme`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange={false}
         >
           {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
