@@ -1,12 +1,12 @@
 [build]
   functions = "./functions"
-  publish = "."
-  command = "npm install && node scripts/process-templates.js"
+  publish = "out"
+  command = "npm install && npm run build"
   node_version = "18"
 
 [dev]
-  framework = "#static"
-  targetPort = 8888
+  framework = "next"
+  targetPort = 3000
   port = 8888
   functionsPort = 9999
   functionsSiteTimeout = 120
@@ -51,19 +51,11 @@
   to = "/auth/auth.html"
   status = 200
 
-# Make sure index.html is accessible directly
+# Next.js SPA fallback - this handles client-side routing
 [[redirects]]
-  from = "/index.html"
+  from = "/*"
   to = "/index.html"
   status = 200
-  force = false
-
-# Default redirect to index.html for authenticated users
-[[redirects]]
-  from = "/"
-  to = "/index.html"
-  status = 200
-  force = false
 
 # Add CORS headers
 [[headers]]
