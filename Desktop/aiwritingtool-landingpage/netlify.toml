@@ -23,35 +23,35 @@
   # Set timeout to 120 seconds for production deployment
   timeout = 120
 
-# Handle API redirects
+# Handle API redirects to Netlify functions
 [[redirects]]
   from = "/api/functions/*"
-  to = "/api/functions/:splat"
+  to = "/.netlify/functions/:splat"
   status = 200
 
 [[redirects]]
   from = "/api/*"
-  to = "/api/:splat"
+  to = "/.netlify/functions/:splat"
   status = 200
 
-# Handle authentication redirects
+# Handle authentication redirects to static auth files
 [[redirects]]
   from = "/auth/callback"
   to = "/auth/callback.html"
   status = 200
 
 [[redirects]]
-  from = "/auth/*"
-  to = "/auth/:splat"
-  status = 200
-
-# Auth route - needs to come before the default redirect
-[[redirects]]
   from = "/auth"
   to = "/auth/auth.html"
   status = 200
 
-# Next.js SPA fallback - this handles client-side routing
+# Serve static auth files
+[[redirects]]
+  from = "/auth/*"
+  to = "/auth/:splat"
+  status = 200
+
+# Next.js app - catch all other routes and serve the main app
 [[redirects]]
   from = "/*"
   to = "/index.html"

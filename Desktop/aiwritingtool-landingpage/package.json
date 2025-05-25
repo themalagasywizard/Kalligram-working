@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && npm run postbuild",
+    "postbuild": "xcopy auth out\\auth\\ /E /I /Y",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
