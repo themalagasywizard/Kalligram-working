@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kalligram - AI Writing Tool (TypeScript)</title>
+    
+    <!-- Environment Variables -->
+    <script>
+        window.ENV = {
+            SUPABASE_URL: '<%= process.env.SUPABASE_URL %>',
+            SUPABASE_ANON_KEY: '<%= process.env.SUPABASE_ANON_KEY %>'
+        };
+    </script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- React and Dependencies -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        border: "hsl(214.3 31.8% 91.4%)",
+                        input: "hsl(214.3 31.8% 91.4%)",
+                        ring: "hsl(231 48% 48%)",
+                        background: "hsl(0 0% 100%)",
+                        foreground: "hsl(222.2 84% 4.9%)",
+                        primary: {
+                            DEFAULT: "hsl(231 48% 48%)",
+                            foreground: "hsl(210 40% 98%)",
+                        },
+                        secondary: {
+                            DEFAULT: "hsl(210 40% 96%)",
+                            foreground: "hsl(222.2 84% 4.9%)",
+                        },
+                        destructive: {
+                            DEFAULT: "hsl(0 84.2% 60.2%)",
+                            foreground: "hsl(210 40% 98%)",
+                        },
+                        muted: {
+                            DEFAULT: "hsl(210 40% 96%)",
+                            foreground: "hsl(215.4 16.3% 46.9%)",
+                        },
+                        accent: {
+                            DEFAULT: "hsl(210 40% 96%)",
+                            foreground: "hsl(222.2 84% 4.9%)",
+                        },
+                        popover: {
+                            DEFAULT: "hsl(0 0% 100%)",
+                            foreground: "hsl(222.2 84% 4.9%)",
+                        },
+                        card: {
+                            DEFAULT: "hsl(0 0% 100%)",
+                            foreground: "hsl(222.2 84% 4.9%)",
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* CSS Variables for Dark Mode */
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --popover: 0 0% 100%;
+            --popover-foreground: 222.2 84% 4.9%;
+            --primary: 231 48% 48%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96%;
+            --secondary-foreground: 222.2 84% 4.9%;
+            --muted: 210 40% 96%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 210 40% 96%;
+            --accent-foreground: 222.2 84% 4.9%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 214.3 31.8% 91.4%;
+            --input: 214.3 31.8% 91.4%;
+            --ring: 231 48% 48%;
+        }
+
+        .dark {
+            --background: 222.2 84% 4.9%;
+            --foreground: 210 40% 98%;
+            --card: 222.2 84% 4.9%;
+            --card-foreground: 210 40% 98%;
+            --popover: 222.2 84% 4.9%;
+            --popover-foreground: 210 40% 98%;
+            --primary: 231 48% 48%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 217.2 32.6% 17.5%;
+            --secondary-foreground: 210 40% 98%;
+            --muted: 217.2 32.6% 17.5%;
+            --muted-foreground: 215 20.2% 65.1%;
+            --accent: 217.2 32.6% 17.5%;
+            --accent-foreground: 210 40% 98%;
+            --destructive: 0 62.8% 30.6%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 217.2 32.6% 17.5%;
+            --input: 217.2 32.6% 17.5%;
+            --ring: 231 48% 48%;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .editor-content {
+            font-family: 'Merriweather', serif;
+            line-height: 1.8;
+        }
+
+        .scrollbar-thin {
+            scrollbar-width: thin;
+            scrollbar-color: hsl(var(--muted-foreground)) transparent;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: hsl(var(--muted-foreground));
+            border-radius: 3px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background-color: hsl(var(--primary));
+        }
+
+        .border-l-3 {
+            border-left-width: 3px;
+        }
+
+        .border-l-primary {
+            border-left-color: hsl(var(--primary));
+        }
+
+        .border-l-transparent {
+            border-left-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
+        
+        // Utility functions
+        const cn = (...classes) => {
+            return classes.filter(Boolean).join(' ');
+        };
+
+        const formatDate = (dateString) => {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        };
+
+        const countWords = (text) => {
+            if (!text || text.trim() === '') return 0;
+            return text.trim().split(/\s+/).length;
+        };
+
+        const debounce = (func, wait) => {
+            let timeout;
+            return (...args) => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func(...args), wait);
+            };
+        };
+
+        // Supabase client
+        const supabaseUrl = window.ENV?.SUPABASE_URL || '';
+        const supabaseAnonKey = window.ENV?.SUPABASE_ANON_KEY || '';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        // Button Component
+        const Button = ({ className, variant = 'default', size = 'default', children, ...props }) => {
+            const baseClasses = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+            
+            const variantClasses = {
+                default: "bg-primary text-primary-foreground hover:bg-primary/90",
+                destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+                outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+                secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                ghost: "hover:bg-accent hover:text-accent-foreground",
+                link: "text-primary underline-offset-4 hover:underline",
+            };
+            
+            const sizeClasses = {
+                default: "h-10 px-4 py-2",
+                sm: "h-9 rounded-md px-3",
+                lg: "h-11 rounded-md px-8",
+                icon: "h-10 w-10",
+            };
+
+            return React.createElement('button', {
+                className: cn(baseClasses, variantClasses[variant], sizeClasses[size], className),
+                ...props
+            }, children);
+        };
+
+        // Card Components
+        const Card = ({ className, children }) => (
+            React.createElement('div', {
+                className: cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)
+            }, children)
+        );
+
+        const CardContent = ({ className, children }) => (
+            React.createElement('div', {
+                className: cn("p-6 pt-0", className)
+            }, children)
+        );
+
+        // Input Components
+        const Input = ({ className, type, ...props }) => {
+            return React.createElement('input', {
+                type,
+                className: cn(
+                    "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                    className
+                ),
+                ...props
+            });
+        };
+
+        const Textarea = ({ className, ...props }) => {
+            return React.createElement('textarea', {
+                className: cn(
+                    "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                    className
+                ),
+                ...props
+            });
+        };
+
+        // Theme Toggle Component
+        const ThemeToggle = () => {
+            const [theme, setTheme] = useState('light');
+
+            useEffect(() => {
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                const initialTheme = savedTheme !== 'system' ? savedTheme : systemTheme;
+                
+                setTheme(initialTheme);
+                document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+            }, []);
+
+            const toggleTheme = () => {
+                const newTheme = theme === 'light' ? 'dark' : 'light';
+                setTheme(newTheme);
+                localStorage.setItem('theme', newTheme);
+                document.documentElement.classList.toggle('dark', newTheme === 'dark');
+            };
+
+            return React.createElement(Button, {
+                variant: "ghost",
+                size: "icon",
+                onClick: toggleTheme,
+                title: "Toggle theme"
+            }, React.createElement('i', {
+                className: `fas ${theme === 'light' ? 'fa-moon' : 'fa-sun'}`
+            }));
+        };
+
+        // Toast Component
+        const Toast = ({ message, type, onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            const typeClasses = {
+                success: 'bg-green-500 text-white',
+                error: 'bg-red-500 text-white',
+                info: 'bg-blue-500 text-white',
+            };
+
+            return React.createElement('div', {
+                className: cn(
+                    "fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg transition-all",
+                    typeClasses[type]
+                )
+            }, React.createElement('div', {
+                className: "flex items-center justify-between"
+            }, [
+                React.createElement('span', { key: 'message' }, message),
+                React.createElement('button', {
+                    key: 'close',
+                    onClick: onClose,
+                    className: "ml-4 text-white hover:text-gray-200"
+                }, React.createElement('i', { className: "fas fa-times" }))
+            ]));
+        };
+
+        // Main App Component
+        const KalligramApp = () => {
+            // State
+            const [user, setUser] = useState(null);
+            const [projects, setProjects] = useState([]);
+            const [currentProject, setCurrentProject] = useState(null);
+            const [chapters, setChapters] = useState([]);
+            const [currentChapter, setCurrentChapter] = useState(null);
+            const [characters, setCharacters] = useState([]);
+            const [chapterContent, setChapterContent] = useState('');
+            const [isDirty, setIsDirty] = useState(false);
+            const [saveStatus, setSaveStatus] = useState('saved');
+            const [showLoadProject, setShowLoadProject] = useState(false);
+            const [showNewProject, setShowNewProject] = useState(false);
+            const [showContextModal, setShowContextModal] = useState(false);
+            const [showAIPanel, setShowAIPanel] = useState(false);
+            const [aiMessages, setAiMessages] = useState([]);
+            const [aiInput, setAiInput] = useState('');
+            const [aiOutput, setAiOutput] = useState('');
+            const [isGenerating, setIsGenerating] = useState(false);
+            const [toast, setToast] = useState(null);
+            const [sidebarOpen, setSidebarOpen] = useState(false);
+
+            // Refs
+            const editorRef = useRef(null);
+            const chatInputRef = useRef(null);
+
+            // Effects
+            useEffect(() => {
+                checkAuth();
+            }, []);
+
+            useEffect(() => {
+                if (currentProject) {
+                    loadChapters(currentProject.id);
+                    loadCharacters(currentProject.id);
+                }
+            }, [currentProject]);
+
+            useEffect(() => {
+                if (currentChapter) {
+                    setChapterContent(currentChapter.content);
+                    setIsDirty(false);
+                }
+            }, [currentChapter]);
+
+            // Auto-save functionality
+            const debouncedSave = useCallback(
+                debounce(async (content) => {
+                    if (currentChapter && isDirty) {
+                        await saveChapter(currentChapter.id, content);
+                    }
+                }, 2000),
+                [currentChapter, isDirty]
+            );
+
+            useEffect(() => {
+                if (isDirty && chapterContent) {
+                    debouncedSave(chapterContent);
+                }
+            }, [chapterContent, isDirty, debouncedSave]);
+
+            // Auth functions
+            const checkAuth = async () => {
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        setUser(user);
+                        await loadProjects();
+                    } else {
+                        window.location.href = '/auth/auth.html';
+                    }
+                } catch (error) {
+                    console.error('Auth check error:', error);
+                    showToast('Authentication error', 'error');
+                }
+            };
+
+            const signOut = async () => {
+                try {
+                    await supabase.auth.signOut();
+                    window.location.href = '/auth/auth.html';
+                } catch (error) {
+                    console.error('Sign out error:', error);
+                    showToast('Failed to sign out', 'error');
+                }
+            };
+
+            // Project functions
+            const loadProjects = async () => {
+                try {
+                    const { data, error } = await supabase
+                        .from('projects')
+                        .select('*')
+                        .order('updated_at', { ascending: false });
+                    
+                    if (error) throw error;
+                    setProjects(data || []);
+                    
+                    if (data && data.length > 0) {
+                        setCurrentProject(data[0]);
+                    }
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                    showToast('Failed to load projects', 'error');
+                }
+            };
+
+            const createProject = async (title, description) => {
+                try {
+                    const { data, error } = await supabase
+                        .from('projects')
+                        .insert({
+                            title,
+                            description,
+                            user_id: user?.id
+                        })
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    setProjects(prev => [data, ...prev]);
+                    setCurrentProject(data);
+                    setShowNewProject(false);
+                    showToast('Project created successfully', 'success');
+                } catch (error) {
+                    console.error('Error creating project:', error);
+                    showToast('Failed to create project', 'error');
+                }
+            };
+
+            // Chapter functions
+            const loadChapters = async (projectId) => {
+                try {
+                    const { data, error } = await supabase
+                        .from('chapters')
+                        .select('*')
+                        .eq('project_id', projectId)
+                        .order('order_index', { ascending: true });
+                    
+                    if (error) throw error;
+                    setChapters(data || []);
+                    
+                    if (data && data.length > 0) {
+                        setCurrentChapter(data[0]);
+                    }
+                } catch (error) {
+                    console.error('Error loading chapters:', error);
+                    showToast('Failed to load chapters', 'error');
+                }
+            };
+
+            const createChapter = async (title) => {
+                if (!currentProject) return;
+                
+                try {
+                    const { data, error } = await supabase
+                        .from('chapters')
+                        .insert({
+                            title,
+                            content: '',
+                            project_id: currentProject.id,
+                            order_index: chapters.length
+                        })
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    setChapters(prev => [...prev, data]);
+                    setCurrentChapter(data);
+                    showToast('Chapter created successfully', 'success');
+                } catch (error) {
+                    console.error('Error creating chapter:', error);
+                    showToast('Failed to create chapter', 'error');
+                }
+            };
+
+            const saveChapter = async (chapterId, content) => {
+                try {
+                    setSaveStatus('saving');
+                    
+                    const { error } = await supabase
+                        .from('chapters')
+                        .update({
+                            content,
+                            updated_at: new Date().toISOString(),
+                            word_count: countWords(content)
+                        })
+                        .eq('id', chapterId);
+                    
+                    if (error) throw error;
+                    
+                    setSaveStatus('saved');
+                    setIsDirty(false);
+                    
+                    // Update current chapter
+                    if (currentChapter && currentChapter.id === chapterId) {
+                        setCurrentChapter(prev => prev ? {
+                            ...prev,
+                            content,
+                            word_count: countWords(content),
+                            updated_at: new Date().toISOString()
+                        } : null);
+                    }
+                } catch (error) {
+                    console.error('Error saving chapter:', error);
+                    setSaveStatus('error');
+                    showToast('Failed to save chapter', 'error');
+                }
+            };
+
+            // Character functions
+            const loadCharacters = async (projectId) => {
+                try {
+                    const { data, error } = await supabase
+                        .from('characters')
+                        .select('*')
+                        .eq('project_id', projectId);
+                    
+                    if (error) throw error;
+                    setCharacters(data || []);
+                } catch (error) {
+                    console.error('Error loading characters:', error);
+                    showToast('Failed to load characters', 'error');
+                }
+            };
+
+            // AI functions
+            const generateAIContent = async () => {
+                if (!aiInput.trim() || isGenerating) return;
+                
+                try {
+                    setIsGenerating(true);
+                    
+                    // Add user message
+                    const userMessage = {
+                        id: Date.now().toString(),
+                        content: aiInput,
+                        isUser: true,
+                        timestamp: new Date()
+                    };
+                    setAiMessages(prev => [...prev, userMessage]);
+                    
+                    // Call AI API (placeholder - replace with actual API)
+                    const response = await fetch('/.netlify/functions/generate-text', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            prompt: aiInput,
+                            context: currentChapter?.content || ''
+                        })
+                    });
+                    
+                    if (!response.ok) throw new Error('AI generation failed');
+                    
+                    const result = await response.json();
+                    
+                    // Add AI response
+                    const aiMessage = {
+                        id: (Date.now() + 1).toString(),
+                        content: result.text || 'Sorry, I could not generate content at this time.',
+                        isUser: false,
+                        timestamp: new Date()
+                    };
+                    setAiMessages(prev => [...prev, aiMessage]);
+                    setAiOutput(result.text || '');
+                    
+                    setAiInput('');
+                } catch (error) {
+                    console.error('Error generating AI content:', error);
+                    showToast('Failed to generate AI content', 'error');
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+
+            const insertAIContent = () => {
+                if (!aiOutput || !editorRef.current) return;
+                
+                const textarea = editorRef.current;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const newContent = chapterContent.substring(0, start) + aiOutput + chapterContent.substring(end);
+                
+                setChapterContent(newContent);
+                setIsDirty(true);
+                setSaveStatus('unsaved');
+                
+                // Clear AI output
+                setAiOutput('');
+                showToast('AI content inserted', 'success');
+            };
+
+            // Utility functions
+            const showToast = (message, type) => {
+                setToast({ message, type });
+            };
+
+            const handleContentChange = (e) => {
+                setChapterContent(e.target.value);
+                setIsDirty(true);
+                setSaveStatus('unsaved');
+            };
+
+            // Render
+            return React.createElement('div', {
+                className: "h-screen flex flex-col bg-background text-foreground"
+            }, [
+                // Toast
+                toast && React.createElement(Toast, {
+                    key: 'toast',
+                    message: toast.message,
+                    type: toast.type,
+                    onClose: () => setToast(null)
+                }),
+
+                // Header
+                React.createElement('header', {
+                    key: 'header',
+                    className: "h-16 bg-card border-b border-border flex items-center justify-between px-6 shadow-sm"
+                }, [
+                    React.createElement('div', {
+                        key: 'header-left',
+                        className: "flex items-center space-x-4"
+                    }, [
+                        React.createElement(Button, {
+                            key: 'mobile-menu',
+                            variant: "ghost",
+                            size: "icon",
+                            className: "lg:hidden",
+                            onClick: () => setSidebarOpen(!sidebarOpen)
+                        }, React.createElement('i', { className: "fas fa-bars" })),
+                        
+                        React.createElement('div', {
+                            key: 'logo',
+                            className: "w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-xl"
+                        }, React.createElement('i', { className: "fas fa-feather-alt" })),
+                        
+                        React.createElement('h1', {
+                            key: 'title',
+                            className: "text-xl font-semibold text-primary hidden md:block"
+                        }, "Kalligram"),
+                        
+                        // Save Status
+                        React.createElement('div', {
+                            key: 'save-status',
+                            className: "flex items-center text-sm text-muted-foreground"
+                        }, [
+                            saveStatus === 'saving' && [
+                                React.createElement('i', { key: 'saving-icon', className: "fas fa-spinner fa-spin mr-2" }),
+                                'Saving...'
+                            ],
+                            saveStatus === 'saved' && [
+                                React.createElement('i', { key: 'saved-icon', className: "fas fa-check text-green-500 mr-2" }),
+                                'Saved'
+                            ],
+                            saveStatus === 'unsaved' && [
+                                React.createElement('i', { key: 'unsaved-icon', className: "fas fa-circle text-yellow-500 mr-2" }),
+                                'Unsaved changes'
+                            ],
+                            saveStatus === 'error' && [
+                                React.createElement('i', { key: 'error-icon', className: "fas fa-exclamation-triangle text-red-500 mr-2" }),
+                                'Save failed'
+                            ]
+                        ])
+                    ]),
+
+                    React.createElement('div', {
+                        key: 'header-right',
+                        className: "flex items-center space-x-2"
+                    }, [
+                        React.createElement(Button, {
+                            key: 'save-btn',
+                            onClick: () => currentChapter && saveChapter(currentChapter.id, chapterContent)
+                        }, [
+                            React.createElement('i', { key: 'save-icon', className: "fas fa-save mr-2" }),
+                            'Save'
+                        ]),
+                        
+                        React.createElement(Button, {
+                            key: 'load-btn',
+                            onClick: () => setShowLoadProject(true)
+                        }, [
+                            React.createElement('i', { key: 'load-icon', className: "fas fa-folder-open mr-2" }),
+                            'Load Project'
+                        ]),
+                        
+                        React.createElement(Button, {
+                            key: 'new-btn',
+                            variant: "secondary",
+                            onClick: () => setShowNewProject(true)
+                        }, [
+                            React.createElement('i', { key: 'new-icon', className: "fas fa-plus mr-2" }),
+                            'New Project'
+                        ]),
+                        
+                        React.createElement(ThemeToggle, { key: 'theme-toggle' }),
+                        
+                        React.createElement('div', {
+                            key: 'user-menu',
+                            className: "relative group"
+                        }, [
+                            React.createElement('img', {
+                                key: 'avatar',
+                                src: user?.profile_picture_url || `https://ui-avatars.com/api/?name=${user?.first_name || user?.email?.charAt(0) || 'U'}&background=4B5EAA&color=fff`,
+                                alt: "User Avatar",
+                                className: "w-9 h-9 rounded-full cursor-pointer border-2 border-transparent hover:border-primary transition-colors"
+                            }),
+                            React.createElement('div', {
+                                key: 'dropdown',
+                                className: "absolute right-0 mt-2 w-48 bg-popover rounded-lg shadow-lg p-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all z-10"
+                            }, [
+                                React.createElement('div', {
+                                    key: 'profile',
+                                    className: "p-2 hover:bg-accent rounded cursor-pointer flex items-center"
+                                }, [
+                                    React.createElement('i', { key: 'profile-icon', className: "fas fa-user-circle text-primary mr-2" }),
+                                    React.createElement('span', { key: 'profile-text' }, user?.first_name || user?.email?.split('@')[0] || 'User')
+                                ]),
+                                React.createElement('div', {
+                                    key: 'settings',
+                                    className: "p-2 hover:bg-accent rounded cursor-pointer flex items-center"
+                                }, [
+                                    React.createElement('i', { key: 'settings-icon', className: "fas fa-cog text-muted-foreground mr-2" }),
+                                    React.createElement('span', { key: 'settings-text' }, 'Settings')
+                                ]),
+                                React.createElement('div', {
+                                    key: 'signout',
+                                    onClick: signOut,
+                                    className: "p-2 hover:bg-accent rounded cursor-pointer flex items-center text-destructive"
+                                }, [
+                                    React.createElement('i', { key: 'signout-icon', className: "fas fa-sign-out-alt mr-2" }),
+                                    React.createElement('span', { key: 'signout-text' }, 'Sign Out')
+                                ])
+                            ])
+                        ])
+                    ])
+                ]),
+
+                // Main Content
+                React.createElement('div', {
+                    key: 'main-content',
+                    className: "flex flex-1 overflow-hidden"
+                }, [
+                    // Sidebar
+                    React.createElement('aside', {
+                        key: 'sidebar',
+                        className: cn(
+                            "w-64 bg-card border-r border-border overflow-y-auto transition-transform duration-300",
+                            "lg:translate-x-0",
+                            sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+                        )
+                    }, React.createElement('div', {
+                        className: "p-4 space-y-6"
+                    }, [
+                        // Project Info
+                        React.createElement(Card, {
+                            key: 'project-info'
+                        }, React.createElement(CardContent, {
+                            className: "p-4"
+                        }, [
+                            React.createElement('h2', {
+                                key: 'project-title',
+                                className: "font-medium text-primary mb-1"
+                            }, currentProject?.title || 'No Project Selected'),
+                            React.createElement('div', {
+                                key: 'project-date',
+                                className: "flex items-center text-xs text-muted-foreground"
+                            }, [
+                                React.createElement('i', { key: 'clock-icon', className: "fas fa-clock mr-1" }),
+                                React.createElement('span', { key: 'date-text' }, 
+                                    currentProject?.updated_at ? formatDate(currentProject.updated_at) : 'Never'
+                                )
+                            ])
+                        ])),
+
+                        // Chapters
+                        React.createElement('div', {
+                            key: 'chapters-section'
+                        }, [
+                            React.createElement('div', {
+                                key: 'chapters-header',
+                                className: "flex items-center justify-between mb-3"
+                            }, React.createElement('h2', {
+                                className: "text-sm font-semibold uppercase tracking-wider text-muted-foreground"
+                            }, "Chapters")),
+                            
+                            React.createElement('div', {
+                                key: 'chapters-list',
+                                className: "space-y-1"
+                            }, chapters.map((chapter) => 
+                                React.createElement('div', {
+                                    key: chapter.id,
+                                    onClick: () => setCurrentChapter(chapter),
+                                    className: cn(
+                                        "p-2 rounded cursor-pointer transition-colors border-l-3",
+                                        currentChapter?.id === chapter.id
+                                            ? "bg-accent border-l-primary text-primary font-medium"
+                                            : "hover:bg-accent border-l-transparent"
+                                    )
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'chapter-title',
+                                        className: "font-medium text-sm"
+                                    }, chapter.title),
+                                    React.createElement('div', {
+                                        key: 'chapter-words',
+                                        className: "text-xs text-muted-foreground"
+                                    }, `${chapter.word_count || countWords(chapter.content)} words`)
+                                ])
+                            )),
+                            
+                            React.createElement(Button, {
+                                key: 'add-chapter',
+                                variant: "outline",
+                                className: "w-full mt-3",
+                                onClick: () => {
+                                    const title = prompt('Chapter title:');
+                                    if (title) createChapter(title);
+                                }
+                            }, [
+                                React.createElement('i', { key: 'plus-icon', className: "fas fa-plus mr-2" }),
+                                'Add Chapter'
+                            ])
+                        ]),
+
+                        // Context
+                        React.createElement('div', {
+                            key: 'context-section'
+                        }, [
+                            React.createElement('div', {
+                                key: 'context-header',
+                                className: "flex items-center justify-between mb-3"
+                            }, [
+                                React.createElement('h2', {
+                                    key: 'context-title',
+                                    className: "text-sm font-semibold uppercase tracking-wider text-muted-foreground"
+                                }, "Story Context"),
+                                React.createElement('span', {
+                                    key: 'context-count',
+                                    className: "text-xs text-muted-foreground"
+                                }, `${characters.length} items`)
+                            ]),
+                            
+                            React.createElement(Card, {
+                                key: 'context-card'
+                            }, React.createElement(CardContent, {
+                                className: "p-2"
+                            }, React.createElement('div', {
+                                className: "space-y-1"
+                            }, [
+                                ...characters.slice(0, 3).map((character) => 
+                                    React.createElement('div', {
+                                        key: character.id,
+                                        className: "text-sm p-2 hover:bg-accent rounded"
+                                    }, [
+                                        React.createElement('div', {
+                                            key: 'char-name',
+                                            className: "font-medium"
+                                        }, character.name),
+                                        React.createElement('div', {
+                                            key: 'char-role',
+                                            className: "text-xs text-muted-foreground capitalize"
+                                        }, character.role)
+                                    ])
+                                ),
+                                characters.length === 0 && React.createElement('div', {
+                                    key: 'no-context',
+                                    className: "text-center p-2 text-muted-foreground text-sm"
+                                }, [
+                                    React.createElement('i', { key: 'info-icon', className: "fas fa-info-circle mr-2" }),
+                                    'No context items yet'
+                                ])
+                            ]))),
+                            
+                            React.createElement(Button, {
+                                key: 'manage-context',
+                                variant: "outline",
+                                className: "w-full mt-3",
+                                onClick: () => setShowContextModal(true)
+                            }, [
+                                React.createElement('i', { key: 'cog-icon', className: "fas fa-cog mr-2" }),
+                                'Manage Context'
+                            ])
+                        ]),
+
+                        // AI Assistant
+                        React.createElement(Button, {
+                            key: 'ai-assistant',
+                            variant: showAIPanel ? "default" : "outline",
+                            className: "w-full",
+                            onClick: () => setShowAIPanel(!showAIPanel)
+                        }, [
+                            React.createElement('i', { key: 'robot-icon', className: "fas fa-robot mr-2" }),
+                            'AI Assistant'
+                        ])
+                    ])),
+
+                    // Editor
+                    React.createElement('main', {
+                        key: 'editor',
+                        className: "flex-1 flex flex-col overflow-hidden"
+                    }, [
+                        // Editor Toolbar
+                        React.createElement('div', {
+                            key: 'toolbar',
+                            className: "h-12 bg-card border-b border-border flex items-center px-4 space-x-2"
+                        }, [
+                            React.createElement(Button, {
+                                key: 'bold',
+                                variant: "ghost",
+                                size: "sm"
+                            }, React.createElement('i', { className: "fas fa-bold" })),
+                            React.createElement(Button, {
+                                key: 'italic',
+                                variant: "ghost",
+                                size: "sm"
+                            }, React.createElement('i', { className: "fas fa-italic" })),
+                            React.createElement(Button, {
+                                key: 'underline',
+                                variant: "ghost",
+                                size: "sm"
+                            }, React.createElement('i', { className: "fas fa-underline" })),
+                            React.createElement('div', {
+                                key: 'divider1',
+                                className: "w-px h-6 bg-border mx-2"
+                            }),
+                            React.createElement(Button, {
+                                key: 'ul',
+                                variant: "ghost",
+                                size: "sm"
+                            }, React.createElement('i', { className: "fas fa-list-ul" })),
+                            React.createElement(Button, {
+                                key: 'ol',
+                                variant: "ghost",
+                                size: "sm"
+                            }, React.createElement('i', { className: "fas fa-list-ol" })),
+                            React.createElement('div', {
+                                key: 'spacer',
+                                className: "flex-1"
+                            }),
+                            React.createElement('div', {
+                                key: 'word-count',
+                                className: "text-sm text-muted-foreground"
+                            }, `${countWords(chapterContent)} words`)
+                        ]),
+
+                        // Editor Content
+                        React.createElement('div', {
+                            key: 'editor-content',
+                            className: "flex-1 flex overflow-hidden"
+                        }, [
+                            React.createElement('div', {
+                                key: 'editor-area',
+                                className: "flex-1 p-6"
+                            }, currentChapter ? 
+                                React.createElement(Textarea, {
+                                    ref: editorRef,
+                                    value: chapterContent,
+                                    onChange: handleContentChange,
+                                    placeholder: "Start writing your story...",
+                                    className: "w-full h-full resize-none border-none shadow-none focus:ring-0 editor-content text-base leading-relaxed"
+                                }) :
+                                React.createElement('div', {
+                                    className: "flex items-center justify-center h-full text-muted-foreground"
+                                }, React.createElement('div', {
+                                    className: "text-center"
+                                }, [
+                                    React.createElement('i', {
+                                        key: 'file-icon',
+                                        className: "fas fa-file-alt text-4xl mb-4"
+                                    }),
+                                    React.createElement('p', {
+                                        key: 'file-text'
+                                    }, "Select a chapter to start writing")
+                                ]))
+                            ),
+
+                            // AI Panel
+                            showAIPanel && React.createElement('div', {
+                                key: 'ai-panel',
+                                className: "w-96 bg-card border-l border-border flex flex-col"
+                            }, [
+                                React.createElement('div', {
+                                    key: 'ai-header',
+                                    className: "p-4 border-b border-border"
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'ai-title-row',
+                                        className: "flex items-center justify-between mb-4"
+                                    }, [
+                                        React.createElement('h3', {
+                                            key: 'ai-title',
+                                            className: "font-semibold"
+                                        }, "AI Assistant"),
+                                        React.createElement(Button, {
+                                            key: 'ai-close',
+                                            variant: "ghost",
+                                            size: "icon",
+                                            onClick: () => setShowAIPanel(false)
+                                        }, React.createElement('i', { className: "fas fa-times" }))
+                                    ]),
+                                    
+                                    React.createElement('div', {
+                                        key: 'ai-input-area',
+                                        className: "space-y-3"
+                                    }, [
+                                        React.createElement(Textarea, {
+                                            key: 'ai-input',
+                                            ref: chatInputRef,
+                                            value: aiInput,
+                                            onChange: (e) => setAiInput(e.target.value),
+                                            placeholder: "Ask AI to help with your writing...",
+                                            className: "min-h-[100px]"
+                                        }),
+                                        
+                                        React.createElement(Button, {
+                                            key: 'ai-generate',
+                                            onClick: generateAIContent,
+                                            disabled: !aiInput.trim() || isGenerating,
+                                            className: "w-full"
+                                        }, isGenerating ? [
+                                            React.createElement('i', { key: 'spinner', className: "fas fa-spinner fa-spin mr-2" }),
+                                            'Generating...'
+                                        ] : [
+                                            React.createElement('i', { key: 'magic', className: "fas fa-magic mr-2" }),
+                                            'Generate'
+                                        ])
+                                    ])
+                                ]),
+
+                                // AI Output
+                                aiOutput && React.createElement('div', {
+                                    key: 'ai-output',
+                                    className: "p-4 border-b border-border"
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'output-content',
+                                        className: "bg-accent rounded-lg p-3 mb-3"
+                                    }, React.createElement('div', {
+                                        className: "text-sm whitespace-pre-wrap"
+                                    }, aiOutput)),
+                                    React.createElement(Button, {
+                                        key: 'insert-btn',
+                                        onClick: insertAIContent,
+                                        variant: "outline",
+                                        className: "w-full"
+                                    }, [
+                                        React.createElement('i', { key: 'plus', className: "fas fa-plus mr-2" }),
+                                        'Insert into Chapter'
+                                    ])
+                                ]),
+
+                                // Chat History
+                                React.createElement('div', {
+                                    key: 'chat-history',
+                                    className: "flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin"
+                                }, aiMessages.map((message) => 
+                                    React.createElement('div', {
+                                        key: message.id,
+                                        className: cn(
+                                            "max-w-[85%] p-3 rounded-lg text-sm",
+                                            message.isUser
+                                                ? "ml-auto bg-primary text-primary-foreground"
+                                                : "mr-auto bg-accent"
+                                        )
+                                    }, [
+                                        React.createElement('div', {
+                                            key: 'message-content',
+                                            className: "whitespace-pre-wrap"
+                                        }, message.content),
+                                        React.createElement('div', {
+                                            key: 'message-time',
+                                            className: "text-xs opacity-70 mt-1"
+                                        }, message.timestamp.toLocaleTimeString())
+                                    ])
+                                ))
+                            ])
+                        ])
+                    ])
+                ]),
+
+                // Sidebar Overlay for Mobile
+                sidebarOpen && React.createElement('div', {
+                    key: 'sidebar-overlay',
+                    className: "fixed inset-0 bg-black/50 z-40 lg:hidden",
+                    onClick: () => setSidebarOpen(false)
+                })
+            ]);
+        };
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(KalligramApp));
+    </script>
+</body>
+</html> 
