@@ -291,6 +291,11 @@
             border-color: var(--border-light);
         }
 
+        /* Adaptive hover background class */
+        .hover-bg-adaptive:hover {
+            background-color: var(--hover-background);
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -1508,7 +1513,7 @@
 
                 // Create project list HTML
                 projectsList.innerHTML = userProjects.map(project => `
-                    <div class="project-item bg-white rounded-lg p-4 border border-gray-200 hover:border-primary cursor-pointer transition-colors"
+                    <div class="project-item bg-card rounded-lg p-4 border border-adaptive hover:border-primary cursor-pointer transition-colors"
                          data-project-id="${project.id}">
                         <div class="flex items-center justify-between mb-2">
                             <h3 class="font-medium text-primary">${project.title}</h3>
@@ -2020,18 +2025,18 @@
                      class="w-9 h-9 rounded-full cursor-pointer border-2 border-white hover:border-primary transition-colors">
                 <div class="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-md-custom p-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all z-10">
                     <a href="/profile.html" class="block">
-                        <div class="p-2 hover:bg-gray-50 rounded cursor-pointer flex items-center">
+                        <div class="p-2 hover-bg-adaptive rounded cursor-pointer flex items-center">
                             <i class="fas fa-user-circle text-primary mr-2"></i>
                             <span id="userDisplayName">Guest User</span>
                         </div>
                     </a>
                     <a href="/profile.html#preferences" class="block">
-                        <div class="p-2 hover:bg-gray-50 rounded cursor-pointer flex items-center">
+                        <div class="p-2 hover-bg-adaptive rounded cursor-pointer flex items-center">
                             <i class="fas fa-cog text-secondary mr-2"></i>
                             <span>Settings</span>
                         </div>
                     </a>
-                    <div id="signOutBtn" class="p-2 hover:bg-gray-50 rounded cursor-pointer flex items-center text-error">
+                    <div id="signOutBtn" class="p-2 hover-bg-adaptive rounded cursor-pointer flex items-center text-error">
                         <i class="fas fa-sign-out-alt mr-2"></i>
                         <span>Sign Out</span>
                     </div>
@@ -2046,7 +2051,7 @@
     <!-- Load Project Panel -->
     <div id="loadProjectPanel" class="fixed right-0 top-0 h-screen w-96 bg-card shadow-lg transform translate-x-full transition-transform duration-300 z-50">
         <div class="h-full flex flex-col">
-            <div class="p-6 border-b border-gray-100">
+            <div class="p-6 border-b border-adaptive">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-xl font-bold text-primary">Load Project</h2>
                     <button id="closeLoadProjectPanel" class="text-gray-400 hover:text-gray-600">
@@ -2054,7 +2059,7 @@
                     </button>
                 </div>
                 <div class="relative">
-                    <input type="text" id="projectSearch" class="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2 focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="Search projects...">
+                    <input type="text" id="projectSearch" class="w-full border border-adaptive rounded-lg pl-10 pr-4 py-2 focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="Search projects...">
                     <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                 </div>
             </div>
@@ -2205,7 +2210,7 @@
             </div>
 
                     <!-- Mode Toggle -->
-                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-3">
+                    <div class="flex space-x-1 bg-surface p-1 rounded-lg mb-3">
                         <button class="ai-mode-btn flex-1 py-1 px-2 text-sm font-medium rounded active" data-mode="generate">Generate</button>
                         <button class="ai-mode-btn flex-1 py-1 px-2 text-sm font-medium rounded" data-mode="chat">Chat</button>
                     </div>
@@ -2294,8 +2299,8 @@
                 <!-- Generate/Edit View -->
                 <div id="generateEditView" class="flex-1 flex flex-col overflow-hidden">
                     <!-- Output Area (now at top) -->
-                    <div id="aiOutput" class="flex-1 bg-gray-50 rounded-lg m-4 p-6 overflow-y-auto">
-                        <p class="text-gray-400 text-sm italic">AI output will appear here...</p>
+                    <div id="aiOutput" class="flex-1 bg-surface rounded-lg m-4 p-6 overflow-y-auto">
+                        <p class="text-secondary-adaptive text-sm italic">AI output will appear here...</p>
             </div>
 
                     <!-- Controls (in middle) -->
@@ -2358,8 +2363,8 @@
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            <div class="bg-gray-50 p-5 rounded-lg mb-5 border border-gray-100">
-                <p class="text-gray-700 leading-relaxed">The city lights twinkled below as John gazed out from his apartment window. Tomorrow would mark one year since the accident changed everything. He sighed, knowing that returning to New York had been necessary, even if every street corner held a memory he'd rather forget.</p>
+            <div class="bg-surface p-5 rounded-lg mb-5 border border-adaptive">
+                <p class="text-primary-adaptive leading-relaxed">The city lights twinkled below as John gazed out from his apartment window. Tomorrow would mark one year since the accident changed everything. He sighed, knowing that returning to New York had been necessary, even if every street corner held a memory he'd rather forget.</p>
             </div>
             <div class="grid grid-cols-2 gap-4 mb-5">
                         <div>
@@ -2570,7 +2575,7 @@
             </div>
                     <div>
                         <label class="text-sm font-medium block mb-2">Relationships</label>
-                        <div class="bg-gray-50 rounded-lg p-2 h-auto">
+                        <div class="bg-surface rounded-lg p-2 h-auto">
                             <div class="text-xs text-textSecondary mb-2">Connected to:</div>
                             <div id="relationshipList" class="space-y-1 mb-3">
                                 <div class="flex items-center justify-between text-sm">
