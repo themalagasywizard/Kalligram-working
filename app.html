@@ -614,7 +614,7 @@
                 height: 40px;
                 border-radius: 8px;
                 padding: 0;
-                margin: 0 4px;
+                margin: 0 2px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -628,6 +628,42 @@
             header .btn i {
                 margin: 0;
                 font-size: 1rem;
+            }
+
+            /* Hide logo on mobile */
+            header .w-10.h-10 {
+                display: none;
+            }
+
+            /* Hide Kalligram text on mobile (already hidden with md:block) */
+
+            /* Adjust header sections */
+            header > div:first-child {
+                display: flex;
+                align-items: center;
+                padding-left: 8px;
+                position: relative; /* For save status positioning */
+            }
+
+            header > div:last-child {
+                display: flex;
+                align-items: center;
+                padding-right: 8px;
+                gap: 2px;
+            }
+
+            /* Harmonize theme toggle button with other buttons */
+            header .theme-toggle {
+                width: 40px;
+                height: 40px;
+                margin: 0 2px;
+            }
+
+            /* Harmonize user avatar size */
+            header #userAvatar {
+                width: 40px;
+                height: 40px;
+                margin: 0 2px;
             }
 
             /* Make logo smaller */
