@@ -457,19 +457,24 @@ const timeoutPromise = (ms, message) => new Promise((_, reject) =>
 const calculateTimeout = (maxTokens, mode, isDeepSeekModel) => {
     // Significantly increased timeouts for longer content
     const BASE_TIMEOUT = mode === 'chat' ? 45000 : 120000;   // 2 minutes for generate mode
-    const MAX_TIMEOUT = 180000;   // 3 minutes maximum (well within Netlify limits)
+    const MAX_TIMEOUT = 240000;   // 4 minutes maximum for very long requests
     const MIN_TIMEOUT = mode === 'chat' ? 30000 : 60000;    // Increased minimum timeout
-    const MS_PER_TOKEN = mode === 'chat' ? 40 : 80;     // More generous per-token scaling
+    const MS_PER_TOKEN = mode === 'chat' ? 40 : 100;     // Much more generous per-token scaling
 
     // Give DeepSeek more time as it tends to require longer processing
     if (isDeepSeekModel) {
         // Add system message complexity factor - our template is large
-        const systemMessageComplexityFactor = 30000; // Add 30 seconds for the complex system message
+        const systemMessageComplexityFactor = 45000; // Add 45 seconds for the complex system message
         const scaledTimeout = BASE_TIMEOUT + (maxTokens * MS_PER_TOKEN) + systemMessageComplexityFactor;
         return Math.min(MAX_TIMEOUT, Math.max(MIN_TIMEOUT, scaledTimeout));
     } else {
         // Also increase non-DeepSeek timeouts significantly
-        return mode === 'chat' ? 60000 : 150000; // 2.5 minutes for generate mode
+        // For very long requests (1000+ words), use maximum timeout
+        const estimatedWords = maxTokens / 1.3; // Rough conversion back to words
+        if (estimatedWords > 1000) {
+            return MAX_TIMEOUT; // 4 minutes for 1000+ word requests
+        }
+        return mode === 'chat' ? 60000 : 180000; // 3 minutes for generate mode
     }
 };
 
@@ -559,6 +564,8 @@ Remember, you are helping brainstorm and plan, not writing the actual content. K
         if (isDeepSeekModel) {
             return `${baseIntro} You are in WRITING MODE.
 
+CRITICAL REQUIREMENT: Write EXACTLY ${desiredWords} words (±50 words acceptable). This is mandatory.
+
 Write a creative story continuation of ${desiredWords} words${tone ? ` in a ${tone} tone` : ''}.
 Your writing must:
 1. Flow naturally from previous text
@@ -567,19 +574,34 @@ Your writing must:
 4. Maintain continuity with previous chapters
 5. Follow user's specific instructions
 6. Use vivid language and well-structured paragraphs
+7. MEET THE EXACT WORD COUNT OF ${desiredWords} WORDS
+
+Word Count Enforcement:
+- Count every word as you write
+- Aim for ${Math.floor(desiredWords * 0.9)}-${Math.ceil(desiredWords * 1.1)} words
+- Do not stop writing until you reach at least ${Math.floor(desiredWords * 0.9)} words
+- If you reach exactly ${desiredWords} words, you may conclude naturally
 
 ${contextString ? `BACKGROUND: ${contextString.substring(0, Math.min(contextString.length, 4000))}` : ''}
 ${previousChapters ? `PREVIOUS CONTENT: ${previousChapters.substring(0, Math.min(previousChapters.length, 5000))}` : ''}
 
-MAINTAIN PERFECT CONTINUITY WITH PREVIOUS CONTENT.`;
+REMEMBER: You must write ${desiredWords} words. Count as you go and ensure you meet this requirement.`;
         }
         
         // Standard generate mode with enhanced writing instructions
         return `${baseIntro} You are in WRITING MODE.
 
+CRITICAL REQUIREMENT: Write EXACTLY ${desiredWords} words (±50 words acceptable). This is mandatory.
+
 Your Task:
 Write an engaging and creative continuation of the story, approximately ${desiredWords} words long${tone ? `, in a ${tone} tone` : ''}.
 The narrative must flow seamlessly from the previous chapter, maintaining perfect continuity while advancing the plot and developing characters.
+
+Word Count Enforcement:
+- Count every word as you write
+- Target range: ${Math.floor(desiredWords * 0.9)}-${Math.ceil(desiredWords * 1.1)} words
+- Do not stop writing until you reach at least ${Math.floor(desiredWords * 0.9)} words
+- If you reach exactly ${desiredWords} words, you may conclude naturally
 
 Core Principles for Your Writing:
 
@@ -611,11 +633,13 @@ Core Principles for Your Writing:
    * Produce well-structured prose with clear paragraphs and complete sentences.
    * Avoid stopping mid-sentence; find a natural ending point if approaching the token limit.
    * Ensure the narrative feels complete and satisfying within the word limit.
+   * MOST IMPORTANTLY: Write exactly ${desiredWords} words - count as you write and ensure you meet this requirement.
 
 What to AVOID:
 * Contradicting the previous chapter's details (e.g., changing location, time, or character states).
 * Introducing unprompted elements that break immersion (e.g., sudden new characters in an isolated scene).
 * Overusing lore elements at the expense of the immediate plot thread.
+* Stopping before reaching ${Math.floor(desiredWords * 0.9)} words.
 
 ${contextString ? `
 BACKGROUND LORE (Use for consistency and inspiration):
@@ -626,7 +650,7 @@ PREVIOUS CHAPTERS (Start EXACTLY where the most recent chapter ends):
 ${previousChapters}
 ` : ''}
 
-FAILURE TO MAINTAIN PERFECT CONTINUITY WITH THE PREVIOUS CHAPTERS IS NOT ALLOWED.`;
+MANDATORY: You must write ${desiredWords} words. Count every word and ensure you meet this exact requirement. Do not stop until you have written at least ${Math.floor(desiredWords * 0.9)} words.`;
     }
 };
 
