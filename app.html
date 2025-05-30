@@ -922,6 +922,9 @@
             loadProjectBtn: document.getElementById('loadProjectBtn'),
         };
 
+        // Expose elements to window object for access from other scripts
+        window.elements = elements;
+
         // Helper Functions
         function showLoading(message = 'Loading...') {
             elements.loadingMessage.textContent = message;
@@ -933,6 +936,10 @@
             elements.loadingOverlay.classList.add('hidden');
             elements.loadingOverlay.classList.remove('flex');
         }
+
+        // Expose helper functions to window object
+        window.showLoading = showLoading;
+        window.hideLoading = hideLoading;
 
         function formatDate(dateString) {
             if (!dateString) return 'Never';
@@ -1093,7 +1100,7 @@
                                 <button class="delete-chapter-btn opacity-0 hover:opacity-100 transition-opacity duration-200 text-red-500 hover:text-red-700 p-1 rounded" title="Delete Chapter" data-chapter-id="${chapter.id}">
                                     <i class="fas fa-trash text-xs"></i>
                                 </button>
-                                <i class="fas fa-grip-lines text-gray-300 cursor-move handle"></i>
+                            <i class="fas fa-grip-lines text-gray-300 cursor-move handle"></i>
                             </div>
                         </div>
                     `;
@@ -1540,6 +1547,9 @@
             }, 3000);
         }
 
+        // Expose showToast to window object
+        window.showToast = showToast;
+
         // Toggle Load Project Panel
         function toggleLoadProjectPanel() {
             const panel = document.getElementById('loadProjectPanel');
@@ -1969,12 +1979,12 @@
             // PDF Export Button
             if (elements.exportPdfBtn) {
                 elements.exportPdfBtn.addEventListener('click', async () => {
-                    try {
+            try {
                         if (!appState.currentProject) {
                             showToast('No project selected', 'error');
-                            return;
-                        }
-                        
+                    return;
+                }
+                
                         showLoading('Generating PDF...');
                         
                         // Get all chapters for the current project
@@ -1994,7 +2004,7 @@
                         // Create new jsPDF instance
                         const { jsPDF } = window.jspdf;
                         const doc = new jsPDF();
-                        
+                
                         // Set up document properties
                         const pageWidth = doc.internal.pageSize.getWidth();
                         const pageHeight = doc.internal.pageSize.getHeight();
@@ -2061,7 +2071,7 @@
                             if (chapter.content) {
                                 doc.setFontSize(11);
                                 doc.setFont(undefined, 'normal');
-                                
+                
                                 // Remove HTML tags and clean up the content
                                 const tempDiv = document.createElement('div');
                                 tempDiv.innerHTML = chapter.content;
@@ -2102,13 +2112,13 @@
                         
                         hideLoading();
                         showToast('PDF exported successfully', 'success');
-                        
-                    } catch (error) {
+                
+            } catch (error) {
                         console.error('Error exporting PDF:', error);
-                        hideLoading();
+                hideLoading();
                         showToast('Failed to export PDF: ' + (error.message || 'Unknown error'), 'error');
-                    }
-                });
+            }
+        });
             }
         }
     </script>
@@ -2277,7 +2287,7 @@
                         <span id="lastEdited">Loading...</span>
                     </div>
                 </div>
-            </div>
+                </div>
 
             <!-- Chapters -->
             <div class="mb-6">
@@ -4603,21 +4613,21 @@
         // PDF Export Functionality
         async function exportToPDF() {
             try {
-                if (!appState.currentProject) {
-                    showToast('No project selected', 'error');
+                if (!window.appState.currentProject) {
+                    window.showToast('No project selected', 'error');
                     return;
                 }
                 
-                showLoading('Generating PDF...');
+                window.showLoading('Generating PDF...');
                 
                 // Get all chapters for the current project
-                const { data: projectChapters, error } = await chapters.getByProject(appState.currentProject.id);
+                const { data: projectChapters, error } = await window.supabaseServices.chapters.getByProject(window.appState.currentProject.id);
                 
                 if (error) throw error;
                 
                 if (!projectChapters || projectChapters.length === 0) {
-                    showToast('No chapters to export', 'error');
-                    hideLoading();
+                    window.showToast('No chapters to export', 'error');
+                    window.hideLoading();
                     return;
                 }
                 
@@ -4640,7 +4650,7 @@
                 // Add title page
                 doc.setFontSize(24);
                 doc.setFont(undefined, 'bold');
-                const titleLines = doc.splitTextToSize(appState.currentProject.title, maxLineWidth);
+                const titleLines = doc.splitTextToSize(window.appState.currentProject.title, maxLineWidth);
                 titleLines.forEach(line => {
                     if (yPosition > pageHeight - margin) {
                         doc.addPage();
@@ -4651,11 +4661,11 @@
                 });
                 
                 // Add description if available
-                if (appState.currentProject.description) {
+                if (window.appState.currentProject.description) {
                     yPosition += lineHeight;
                     doc.setFontSize(12);
                     doc.setFont(undefined, 'normal');
-                    const descLines = doc.splitTextToSize(appState.currentProject.description, maxLineWidth);
+                    const descLines = doc.splitTextToSize(window.appState.currentProject.description, maxLineWidth);
                     descLines.forEach(line => {
                         if (yPosition > pageHeight - margin) {
                             doc.addPage();
@@ -4727,40 +4737,54 @@
                 }
                 
                 // Generate filename
-                const sanitizedTitle = appState.currentProject.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const sanitizedTitle = window.appState.currentProject.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
                 const filename = `${sanitizedTitle}_${new Date().toISOString().split('T')[0]}.pdf`;
                 
                 // Save the PDF
                 doc.save(filename);
                 
-                hideLoading();
-                showToast('PDF exported successfully', 'success');
+                window.hideLoading();
+                window.showToast('PDF exported successfully', 'success');
                 
             } catch (error) {
                 console.error('Error exporting PDF:', error);
-                hideLoading();
-                showToast('Failed to export PDF: ' + (error.message || 'Unknown error'), 'error');
+                window.hideLoading();
+                window.showToast('Failed to export PDF: ' + (error.message || 'Unknown error'), 'error');
             }
         }
         
-        // Add event listener for PDF export button
-        if (elements.exportPdfBtn) {
-            elements.exportPdfBtn.addEventListener('click', exportToPDF);
-        }
+        // Add event listener for PDF export button when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const exportPdfBtn = document.getElementById('exportPdfBtn');
+            if (exportPdfBtn) {
+                exportPdfBtn.addEventListener('click', exportToPDF);
+            }
+        });
     </script>
 
     <script>
         // Initialization
         document.addEventListener('DOMContentLoaded', async () => {
             try {
+                // Wait for supabaseServices to be available
+                let attempts = 0;
+                while (!window.supabaseServices && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (!window.supabaseServices) {
+                    throw new Error('Supabase services not available');
+                }
+                
                 // Check if user is authenticated
-                const { data: { user } } = await auth.getUser();
+                const { data: { user } } = await window.supabaseServices.auth.getUser();
                 if (!user) {
                     window.location.href = '/auth/auth.html';
                     return;
                 }
                 
-                appState.currentUser = user;
+                window.appState.currentUser = user;
                 
                 // Setup UI event listeners
                 setupEventListeners();
@@ -4773,7 +4797,9 @@
                 
             } catch (error) {
                 console.error('Error initializing app:', error);
-                hideLoading();
+                if (typeof hideLoading === 'function') {
+                    hideLoading();
+                }
             }
         });
     </script>
