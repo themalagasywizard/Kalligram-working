@@ -18,6 +18,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -904,6 +906,7 @@
             contextCount: document.getElementById('contextCount'),
             contextList: document.getElementById('contextList'),
             saveStatus: document.getElementById('saveStatus'),
+            exportPdfBtn: document.getElementById('exportPdfBtn'),
             
             // New Project Modal
             newProjectModal: document.getElementById('newProjectModal'),
@@ -1086,12 +1089,76 @@
                     chapterElement.innerHTML = `
                         <div class="flex items-center justify-between">
                             <span class="chapter-title">${chapter.title}</span>
-                            <i class="fas fa-grip-lines text-gray-300 cursor-move handle"></i>
+                            <div class="flex items-center space-x-1">
+                                <button class="delete-chapter-btn opacity-0 hover:opacity-100 transition-opacity duration-200 text-red-500 hover:text-red-700 p-1 rounded" title="Delete Chapter" data-chapter-id="${chapter.id}">
+                                    <i class="fas fa-trash text-xs"></i>
+                                </button>
+                                <i class="fas fa-grip-lines text-gray-300 cursor-move handle"></i>
+                            </div>
                         </div>
                     `;
                     
                     // Add click handler
                     chapterElement.addEventListener('click', () => selectChapter(chapter.id));
+                    
+                    // Add hover effects to show/hide delete button
+                    chapterElement.addEventListener('mouseenter', () => {
+                        const deleteBtn = chapterElement.querySelector('.delete-chapter-btn');
+                        if (deleteBtn) {
+                            deleteBtn.classList.remove('opacity-0');
+                            deleteBtn.classList.add('opacity-100');
+                        }
+                    });
+                    
+                    chapterElement.addEventListener('mouseleave', () => {
+                        const deleteBtn = chapterElement.querySelector('.delete-chapter-btn');
+                        if (deleteBtn) {
+                            deleteBtn.classList.remove('opacity-100');
+                            deleteBtn.classList.add('opacity-0');
+                        }
+                    });
+                    
+                    // Add delete button click handler
+                    const deleteBtn = chapterElement.querySelector('.delete-chapter-btn');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation(); // Prevent chapter selection
+                            
+                            // Show confirmation dialog
+                            const confirmed = confirm(`Are you sure you want to delete "${chapter.title}"? This action cannot be undone.`);
+                            if (!confirmed) return;
+                            
+                            try {
+                                showLoading('Deleting chapter...');
+                                
+                                // Delete from database
+                                const { error } = await chapters.delete(chapter.id);
+                                
+                                if (error) throw error;
+                                
+                                // Remove from cache
+                                appState.chapterCache.delete(chapter.id);
+                                
+                                // If this was the current chapter, clear the editor
+                                if (appState.currentChapter && appState.currentChapter.id === chapter.id) {
+                                    appState.currentChapter = null;
+                                    elements.chapterTitle.textContent = 'Select a chapter';
+                                    elements.editorContent.innerHTML = '<p class="mb-4">Select a chapter to start writing...</p>';
+                                    updateWordCount();
+                                }
+                                
+                                // Reload chapters
+                                await loadChapters(appState.currentProject.id);
+                                
+                                hideLoading();
+                                showToast('Chapter deleted successfully', 'success');
+                            } catch (error) {
+                                console.error('Error deleting chapter:', error);
+                                hideLoading();
+                                showToast('Failed to delete chapter: ' + (error.message || 'Unknown error'), 'error');
+                            }
+                        });
+                    }
                     
                     // Add double-click handler for renaming
                     chapterElement.addEventListener('dblclick', (e) => {
@@ -1898,34 +1965,152 @@
 
             // Call the setup function
             setupProjectTitleRename();
-        }
-
-        // Initialization
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // Check if user is authenticated
-                const { data: { user } } = await auth.getUser();
-                if (!user) {
-                    window.location.href = '/auth/auth.html';
-                    return;
-                }
-                
-                appState.currentUser = user;
-                
-                // Setup UI event listeners
-                setupEventListeners();
-                
-                // Load projects
-                await loadProjects();
-                
-                // Load context items
-                await loadContextItems();
-                
-            } catch (error) {
-                console.error('Error initializing app:', error);
-                hideLoading();
+            
+            // PDF Export Button
+            if (elements.exportPdfBtn) {
+                elements.exportPdfBtn.addEventListener('click', async () => {
+                    try {
+                        if (!appState.currentProject) {
+                            showToast('No project selected', 'error');
+                            return;
+                        }
+                        
+                        showLoading('Generating PDF...');
+                        
+                        // Get all chapters for the current project
+                        const { data: projectChapters, error } = await chapters.getByProject(appState.currentProject.id);
+                        
+                        if (error) throw error;
+                        
+                        if (!projectChapters || projectChapters.length === 0) {
+                            showToast('No chapters to export', 'error');
+                            hideLoading();
+                            return;
+                        }
+                        
+                        // Sort chapters by order_index
+                        projectChapters.sort((a, b) => a.order_index - b.order_index);
+                        
+                        // Create new jsPDF instance
+                        const { jsPDF } = window.jspdf;
+                        const doc = new jsPDF();
+                        
+                        // Set up document properties
+                        const pageWidth = doc.internal.pageSize.getWidth();
+                        const pageHeight = doc.internal.pageSize.getHeight();
+                        const margin = 20;
+                        const lineHeight = 7;
+                        const maxLineWidth = pageWidth - (margin * 2);
+                        
+                        let yPosition = margin;
+                        
+                        // Add title page
+                        doc.setFontSize(24);
+                        doc.setFont(undefined, 'bold');
+                        const titleLines = doc.splitTextToSize(appState.currentProject.title, maxLineWidth);
+                        titleLines.forEach(line => {
+                            if (yPosition > pageHeight - margin) {
+                                doc.addPage();
+                                yPosition = margin;
+                            }
+                            doc.text(line, margin, yPosition);
+                            yPosition += lineHeight * 2;
+                        });
+                        
+                        // Add description if available
+                        if (appState.currentProject.description) {
+                            yPosition += lineHeight;
+                            doc.setFontSize(12);
+                            doc.setFont(undefined, 'normal');
+                            const descLines = doc.splitTextToSize(appState.currentProject.description, maxLineWidth);
+                            descLines.forEach(line => {
+                                if (yPosition > pageHeight - margin) {
+                                    doc.addPage();
+                                    yPosition = margin;
+                                }
+                                doc.text(line, margin, yPosition);
+                                yPosition += lineHeight;
+                            });
+                        }
+                        
+                        // Add new page for chapters
+                        doc.addPage();
+                        yPosition = margin;
+                        
+                        // Process each chapter
+                        for (const chapter of projectChapters) {
+                            // Add chapter title
+                            doc.setFontSize(16);
+                            doc.setFont(undefined, 'bold');
+                            
+                            // Check if we need a new page for the chapter title
+                            if (yPosition > pageHeight - margin - 20) {
+                                doc.addPage();
+                                yPosition = margin;
+                            }
+                            
+                            const chapterTitleLines = doc.splitTextToSize(chapter.title, maxLineWidth);
+                            chapterTitleLines.forEach(line => {
+                                doc.text(line, margin, yPosition);
+                                yPosition += lineHeight * 1.5;
+                            });
+                            
+                            yPosition += lineHeight;
+                            
+                            // Add chapter content
+                            if (chapter.content) {
+                                doc.setFontSize(11);
+                                doc.setFont(undefined, 'normal');
+                                
+                                // Remove HTML tags and clean up the content
+                                const tempDiv = document.createElement('div');
+                                tempDiv.innerHTML = chapter.content;
+                                const cleanContent = tempDiv.textContent || tempDiv.innerText || '';
+                                
+                                // Split content into paragraphs
+                                const paragraphs = cleanContent.split('\n').filter(p => p.trim().length > 0);
+                                
+                                paragraphs.forEach(paragraph => {
+                                    const lines = doc.splitTextToSize(paragraph.trim(), maxLineWidth);
+                                    
+                                    lines.forEach(line => {
+                                        // Check if we need a new page
+                                        if (yPosition > pageHeight - margin) {
+                                            doc.addPage();
+                                            yPosition = margin;
+                                        }
+                                        
+                                        doc.text(line, margin, yPosition);
+                                        yPosition += lineHeight;
+                                    });
+                                    
+                                    // Add space between paragraphs
+                                    yPosition += lineHeight * 0.5;
+                                });
+                            }
+                            
+                            // Add space between chapters
+                            yPosition += lineHeight * 2;
+                        }
+                        
+                        // Generate filename
+                        const sanitizedTitle = appState.currentProject.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                        const filename = `${sanitizedTitle}_${new Date().toISOString().split('T')[0]}.pdf`;
+                        
+                        // Save the PDF
+                        doc.save(filename);
+                        
+                        hideLoading();
+                        showToast('PDF exported successfully', 'success');
+                        
+                    } catch (error) {
+                        console.error('Error exporting PDF:', error);
+                        hideLoading();
+                        showToast('Failed to export PDF: ' + (error.message || 'Unknown error'), 'error');
+                    }
+                });
             }
-        });
+        }
     </script>
 
     <script type="module">
@@ -2136,7 +2321,7 @@
 
             <!-- Export -->
             <div class="mb-6">
-                <button class="btn btn-success w-full">
+                <button id="exportPdfBtn" class="btn btn-success w-full">
                     <i class="fas fa-file-pdf"></i>
                     Export PDF
                 </button>
@@ -4401,6 +4586,195 @@
                     themeToggle.click();
                 }
             });
+        });
+    </script>
+
+    <!-- Initialize the app -->
+    <script>
+        // Initialize the app
+        initializeApp();
+    </script>
+    
+    <!-- Initialize the app -->
+    <script>
+        // Initialize the app
+        initializeApp();
+        
+        // PDF Export Functionality
+        async function exportToPDF() {
+            try {
+                if (!appState.currentProject) {
+                    showToast('No project selected', 'error');
+                    return;
+                }
+                
+                showLoading('Generating PDF...');
+                
+                // Get all chapters for the current project
+                const { data: projectChapters, error } = await chapters.getByProject(appState.currentProject.id);
+                
+                if (error) throw error;
+                
+                if (!projectChapters || projectChapters.length === 0) {
+                    showToast('No chapters to export', 'error');
+                    hideLoading();
+                    return;
+                }
+                
+                // Sort chapters by order_index
+                projectChapters.sort((a, b) => a.order_index - b.order_index);
+                
+                // Create new jsPDF instance
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Set up document properties
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 20;
+                const lineHeight = 7;
+                const maxLineWidth = pageWidth - (margin * 2);
+                
+                let yPosition = margin;
+                
+                // Add title page
+                doc.setFontSize(24);
+                doc.setFont(undefined, 'bold');
+                const titleLines = doc.splitTextToSize(appState.currentProject.title, maxLineWidth);
+                titleLines.forEach(line => {
+                    if (yPosition > pageHeight - margin) {
+                        doc.addPage();
+                        yPosition = margin;
+                    }
+                    doc.text(line, margin, yPosition);
+                    yPosition += lineHeight * 2;
+                });
+                
+                // Add description if available
+                if (appState.currentProject.description) {
+                    yPosition += lineHeight;
+                    doc.setFontSize(12);
+                    doc.setFont(undefined, 'normal');
+                    const descLines = doc.splitTextToSize(appState.currentProject.description, maxLineWidth);
+                    descLines.forEach(line => {
+                        if (yPosition > pageHeight - margin) {
+                            doc.addPage();
+                            yPosition = margin;
+                        }
+                        doc.text(line, margin, yPosition);
+                        yPosition += lineHeight;
+                    });
+                }
+                
+                // Add new page for chapters
+                doc.addPage();
+                yPosition = margin;
+                
+                // Process each chapter
+                for (const chapter of projectChapters) {
+                    // Add chapter title
+                    doc.setFontSize(16);
+                    doc.setFont(undefined, 'bold');
+                    
+                    // Check if we need a new page for the chapter title
+                    if (yPosition > pageHeight - margin - 20) {
+                        doc.addPage();
+                        yPosition = margin;
+                    }
+                    
+                    const chapterTitleLines = doc.splitTextToSize(chapter.title, maxLineWidth);
+                    chapterTitleLines.forEach(line => {
+                        doc.text(line, margin, yPosition);
+                        yPosition += lineHeight * 1.5;
+                    });
+                    
+                    yPosition += lineHeight;
+                    
+                    // Add chapter content
+                    if (chapter.content) {
+                        doc.setFontSize(11);
+                        doc.setFont(undefined, 'normal');
+                        
+                        // Remove HTML tags and clean up the content
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = chapter.content;
+                        const cleanContent = tempDiv.textContent || tempDiv.innerText || '';
+                        
+                        // Split content into paragraphs
+                        const paragraphs = cleanContent.split('\n').filter(p => p.trim().length > 0);
+                        
+                        paragraphs.forEach(paragraph => {
+                            const lines = doc.splitTextToSize(paragraph.trim(), maxLineWidth);
+                            
+                            lines.forEach(line => {
+                                // Check if we need a new page
+                                if (yPosition > pageHeight - margin) {
+                                    doc.addPage();
+                                    yPosition = margin;
+                                }
+                                
+                                doc.text(line, margin, yPosition);
+                                yPosition += lineHeight;
+                            });
+                            
+                            // Add space between paragraphs
+                            yPosition += lineHeight * 0.5;
+                        });
+                    }
+                    
+                    // Add space between chapters
+                    yPosition += lineHeight * 2;
+                }
+                
+                // Generate filename
+                const sanitizedTitle = appState.currentProject.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const filename = `${sanitizedTitle}_${new Date().toISOString().split('T')[0]}.pdf`;
+                
+                // Save the PDF
+                doc.save(filename);
+                
+                hideLoading();
+                showToast('PDF exported successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                hideLoading();
+                showToast('Failed to export PDF: ' + (error.message || 'Unknown error'), 'error');
+            }
+        }
+        
+        // Add event listener for PDF export button
+        if (elements.exportPdfBtn) {
+            elements.exportPdfBtn.addEventListener('click', exportToPDF);
+        }
+    </script>
+
+    <script>
+        // Initialization
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Check if user is authenticated
+                const { data: { user } } = await auth.getUser();
+                if (!user) {
+                    window.location.href = '/auth/auth.html';
+                    return;
+                }
+                
+                appState.currentUser = user;
+                
+                // Setup UI event listeners
+                setupEventListeners();
+                
+                // Load projects
+                await loadProjects();
+                
+                // Load context items
+                await loadContextItems();
+                
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                hideLoading();
+            }
         });
     </script>
 </body>
