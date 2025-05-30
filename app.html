@@ -4495,26 +4495,23 @@
         // PDF Export Functionality
         async function exportToPDF() {
             try {
-                if (!window.appState.currentProject) {
-                    window.showToast('No project selected', 'error');
+                // Use stored chapters from preview
+                const projectChapters = window.pdfExportChapters;
+                if (!projectChapters) {
+                    window.showToast('No chapters to export', 'error');
                     return;
                 }
+                
+                // Hide preview modal
+                closePdfPreview();
                 
                 window.showLoading('Generating PDF...');
                 
-                // Get all chapters for the current project
-                const { data: projectChapters, error } = await window.supabaseServices.chapters.getByProject(window.appState.currentProject.id);
-                
-                if (error) throw error;
-                
-                if (!projectChapters || projectChapters.length === 0) {
-                    window.showToast('No chapters to export', 'error');
-                    window.hideLoading();
-                    return;
-                }
-                
-                // Sort chapters by order_index
-                projectChapters.sort((a, b) => a.order_index - b.order_index);
+                // Get export options
+                const includeCoverPage = document.getElementById('includeCoverPage').checked;
+                const fontSize = parseInt(document.getElementById('pdfFontSize').value);
+                const lineSpacing = parseFloat(document.getElementById('pdfLineSpacing').value);
+                const chapterPageBreaks = document.getElementById('chapterPageBreaks').checked;
                 
                 // Create new jsPDF instance
                 const { jsPDF } = window.jspdf;
@@ -4524,55 +4521,72 @@
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const pageHeight = doc.internal.pageSize.getHeight();
                 const margin = 20;
-                const lineHeight = 7;
+                const lineHeight = fontSize * lineSpacing * 0.35; // Convert to PDF units
                 const maxLineWidth = pageWidth - (margin * 2);
                 
                 let yPosition = margin;
                 
-                // Add title page
-                doc.setFontSize(24);
-                doc.setFont(undefined, 'bold');
-                const titleLines = doc.splitTextToSize(window.appState.currentProject.title, maxLineWidth);
-                titleLines.forEach(line => {
-                    if (yPosition > pageHeight - margin) {
-                        doc.addPage();
-                        yPosition = margin;
-                    }
-                    doc.text(line, margin, yPosition);
-                    yPosition += lineHeight * 2;
-                });
-                
-                // Add description if available
-                if (window.appState.currentProject.description) {
-                    yPosition += lineHeight;
-                    doc.setFontSize(12);
-                    doc.setFont(undefined, 'normal');
-                    const descLines = doc.splitTextToSize(window.appState.currentProject.description, maxLineWidth);
-                    descLines.forEach(line => {
+                // Add cover page if enabled
+                if (includeCoverPage) {
+                    doc.setFontSize(24);
+                    doc.setFont(undefined, 'bold');
+                    const titleLines = doc.splitTextToSize(window.appState.currentProject.title, maxLineWidth);
+                    titleLines.forEach(line => {
                         if (yPosition > pageHeight - margin) {
                             doc.addPage();
                             yPosition = margin;
                         }
                         doc.text(line, margin, yPosition);
-                        yPosition += lineHeight;
+                        yPosition += lineHeight * 2;
                     });
+                    
+                    // Add description if available
+                    if (window.appState.currentProject.description) {
+                        yPosition += lineHeight;
+                        doc.setFontSize(fontSize);
+                        doc.setFont(undefined, 'normal');
+                        const descLines = doc.splitTextToSize(window.appState.currentProject.description, maxLineWidth);
+                        descLines.forEach(line => {
+                            if (yPosition > pageHeight - margin) {
+                                doc.addPage();
+                                yPosition = margin;
+                            }
+                            doc.text(line, margin, yPosition);
+                            yPosition += lineHeight;
+                        });
+                    }
+                    
+                    // Add date
+                    yPosition += lineHeight * 2;
+                    doc.setFontSize(fontSize - 1);
+                    doc.text(`Generated on ${new Date().toLocaleDateString()}`, margin, yPosition);
+                    
+                    // Add new page for chapters
+                    doc.addPage();
+                    yPosition = margin;
                 }
                 
-                // Add new page for chapters
-                doc.addPage();
-                yPosition = margin;
-                
                 // Process each chapter
-                for (const chapter of projectChapters) {
-                    // Add chapter title
-                    doc.setFontSize(16);
-                    doc.setFont(undefined, 'bold');
+                for (let i = 0; i < projectChapters.length; i++) {
+                    const chapter = projectChapters[i];
                     
-                    // Check if we need a new page for the chapter title
-                    if (yPosition > pageHeight - margin - 20) {
+                    // Start each chapter on a new page if option is enabled (except the first one which already has a new page)
+                    if (i > 0 && chapterPageBreaks) {
                         doc.addPage();
                         yPosition = margin;
+                    } else if (i > 0) {
+                        // If not starting on new pages, add extra space between chapters
+                        yPosition += lineHeight * 3;
+                        // Check if we need a new page due to space
+                        if (yPosition > pageHeight - margin - 40) {
+                            doc.addPage();
+                            yPosition = margin;
+                        }
                     }
+                    
+                    // Add chapter title
+                    doc.setFontSize(fontSize + 4);
+                    doc.setFont(undefined, 'bold');
                     
                     const chapterTitleLines = doc.splitTextToSize(chapter.title, maxLineWidth);
                     chapterTitleLines.forEach(line => {
@@ -4580,11 +4594,11 @@
                         yPosition += lineHeight * 1.5;
                     });
                     
-                    yPosition += lineHeight;
+                    yPosition += lineHeight * 2; // Extra space after chapter title
                     
                     // Add chapter content
                     if (chapter.content) {
-                        doc.setFontSize(11);
+                        doc.setFontSize(fontSize);
                         doc.setFont(undefined, 'normal');
                         
                         // Remove HTML tags and clean up the content
@@ -4597,6 +4611,12 @@
                         
                         paragraphs.forEach(paragraph => {
                             const lines = doc.splitTextToSize(paragraph.trim(), maxLineWidth);
+                            
+                            // Check if we need space for the paragraph (avoid orphaned paragraphs)
+                            if (yPosition + (lines.length * lineHeight) > pageHeight - margin) {
+                                doc.addPage();
+                                yPosition = margin;
+                            }
                             
                             lines.forEach(line => {
                                 // Check if we need a new page
@@ -4613,9 +4633,6 @@
                             yPosition += lineHeight * 0.5;
                         });
                     }
-                    
-                    // Add space between chapters
-                    yPosition += lineHeight * 2;
                 }
                 
                 // Generate filename
@@ -4654,7 +4671,7 @@
             if (pdfExportOverlay) pdfExportOverlay.addEventListener('click', closePdfPreview);
             
             // Update preview when options change
-            const previewOptions = ['includeCoverPage', 'pdfFontSize', 'pdfLineSpacing'];
+            const previewOptions = ['includeCoverPage', 'pdfFontSize', 'pdfLineSpacing', 'chapterPageBreaks'];
             previewOptions.forEach(optionId => {
                 const element = document.getElementById(optionId);
                 if (element) {
@@ -4745,6 +4762,11 @@
                             <option value="2.0">Double</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Chapter Page Breaks</label>
+                        <input type="checkbox" id="chapterPageBreaks" checked class="rounded border-gray-300 text-primary focus:ring-primary">
+                        <span class="ml-2 text-sm text-gray-600">Start each chapter on a new page</span>
+                    </div>
                 </div>
             </div>
             
@@ -4833,6 +4855,7 @@
         function generatePreviewContent(chapters) {
             const previewContent = document.getElementById('pdfPreviewContent');
             const includeCoverPage = document.getElementById('includeCoverPage').checked;
+            const chapterPageBreaks = document.getElementById('chapterPageBreaks').checked;
             
             let contentHtml = '';
             let totalWordCount = 0;
