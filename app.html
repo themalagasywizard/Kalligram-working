@@ -2402,10 +2402,13 @@
                         <div>
                             <label class="text-sm font-medium block mb-2">Length</label>
                             <div class="flex items-center space-x-2">
-                                <span class="text-xs text-gray-500">Short</span>
-                                <input type="range" id="aiLength" min="50" max="500" value="200" class="flex-grow">
-                                <span class="text-xs text-gray-500">Long</span>
-                    </div>
+                                <span class="text-xs text-gray-500">50</span>
+                                <input type="range" id="aiLength" min="50" max="1500" value="300" class="flex-grow">
+                                <span class="text-xs text-gray-500">1500</span>
+                            </div>
+                            <div class="text-center mt-1">
+                                <span class="text-xs font-medium text-primary" id="aiLengthDisplay">300 words</span>
+                            </div>
                         </div>
                 </div>
 
@@ -3585,8 +3588,8 @@
             // Update input placeholder based on mode
             function updatePlaceholder() {
                 const placeholders = {
-                    generate: 'Write a scene with Jane...',
-                    chat: 'Ask the AI...'
+                    generate: 'Write a scene with Jane exploring the haunted mansion...',
+                    chat: 'Ask about your characters, plot, or world-building...'
                 };
                 
                 if (currentMode === 'chat') {
@@ -3967,7 +3970,23 @@
                 if (!prompt) return;
                 
                 // Show loading state
-                aiOutput.innerHTML = '<p class="text-gray-400 text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Generating...</p>';
+                aiOutput.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="inline-flex items-center justify-center w-16 h-16 bg-primary bg-opacity-10 rounded-full mb-4">
+                            <div class="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+                        </div>
+                        <div class="text-lg font-medium text-primary mb-2">Generating Content</div>
+                        <div class="text-sm text-textSecondary">This may take a moment for longer content...</div>
+                        <div class="mt-4 bg-primaryLight rounded-lg p-3">
+                            <div class="text-xs text-textSecondary mb-1">Request Details:</div>
+                            <div class="text-sm">
+                                <span class="font-medium">${document.getElementById('aiLength').value} words</span> • 
+                                <span class="font-medium">${document.getElementById('aiTone').value || 'neutral'} tone</span> • 
+                                <span class="font-medium">${document.getElementById('aiModel').options[document.getElementById('aiModel').selectedIndex].text}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
                 aiInput.value = '';
                 validateInput(aiInput);
                 
@@ -4004,45 +4023,66 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        // Show success output with insert button
-                        aiOutput.innerHTML = `
-                            <div class="space-y-4">
-                                <div class="prose max-w-none">
-                                    ${data.text.split('\n').map(line => 
-                                        line.trim() ? `<p>${line}</p>` : ''
-                                    ).join('')}
+                        // Use streaming display for better UX
+                        simulateStreamingText(data.text, aiOutput, () => {
+                            // Add insert button after streaming is complete
+                            const buttonContainer = document.createElement('div');
+                            buttonContainer.className = 'flex justify-between items-center mt-6 pt-4 border-t border-adaptive';
+                            buttonContainer.innerHTML = `
+                                <div class="text-sm text-textSecondary">
+                                    <span class="font-medium">${data.actualWords || data.text.split(/\s+/).length}</span> words generated
+                                    ${data.model ? `• <span class="font-medium">${data.model}</span>` : ''}
                                 </div>
-                                <div class="flex justify-end space-x-3 mt-4">
-                                    <button class="px-3 py-1.5 text-sm font-medium text-white bg-primary rounded hover:bg-primary/90 transition-colors flex items-center space-x-2" 
-                                            id="insertIntoChapterBtn">
-                                        <i class="fas fa-paste"></i>
-                                        <span>Insert into Chapter</span>
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                        
-                        // Add event listener to the insert button
-                        document.getElementById('insertIntoChapterBtn').addEventListener('click', function() {
-                            insertIntoChapter(data.text);
-                        });
-                        
-                        // Track successful generation
-                        if (window.gtag) {
-                            window.gtag('event', 'ai_generation_success', {
-                                'event_category': 'engagement',
-                                'event_label': currentMode
+                                <button class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors flex items-center space-x-2" 
+                                        id="insertIntoChapterBtn">
+                                    <i class="fas fa-paste"></i>
+                                    <span>Insert into Chapter</span>
+                                </button>
+                            `;
+                            aiOutput.appendChild(buttonContainer);
+                            
+                            // Add event listener to the insert button
+                            document.getElementById('insertIntoChapterBtn').addEventListener('click', function() {
+                                insertIntoChapter(data.text);
                             });
-                        }
+                        });
                     } else {
                         throw new Error(data.error || 'Failed to generate text');
                     }
                 } catch (error) {
                     console.error('Error generating text:', error);
+                    
+                    // Enhanced error display with helpful tips
+                    let errorMessage = error.message || 'An error occurred while generating text';
+                    let helpTips = '';
+                    
+                    if (error.message && error.message.includes('timed out')) {
+                        helpTips = `
+                            <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <div class="text-sm font-medium text-yellow-800 mb-2">💡 Tips to avoid timeouts:</div>
+                                <ul class="text-xs text-yellow-700 space-y-1">
+                                    <li>• Try reducing the word count (currently ${document.getElementById('aiLength').value} words)</li>
+                                    <li>• Use a simpler, more specific prompt</li>
+                                    <li>• Try the DeepSeek model which handles longer content better</li>
+                                    <li>• Consider breaking large requests into smaller chunks</li>
+                                </ul>
+                            </div>
+                        `;
+                    } else if (error.message && error.message.includes('rate limit')) {
+                        helpTips = `
+                            <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="text-sm text-blue-800">Rate limit reached. Please wait a moment before trying again.</div>
+                            </div>
+                        `;
+                    }
+                    
                     aiOutput.innerHTML = `
-                        <div class="text-error">
-                            <i class="fas fa-exclamation-circle mr-2"></i>
-                            ${error.message || 'An error occurred while generating text'}
+                        <div class="text-center py-6">
+                            <div class="inline-flex items-center justify-center w-12 h-12 bg-error bg-opacity-10 rounded-full mb-3">
+                                <i class="fas fa-exclamation-circle text-error text-xl"></i>
+                            </div>
+                            <div class="text-error font-medium mb-2">${errorMessage}</div>
+                            ${helpTips}
                         </div>
                     `;
                 }
@@ -4925,6 +4965,127 @@
             document.getElementById('pdfPreviewModal').classList.add('hidden');
             document.getElementById('pdfPreviewModal').classList.remove('flex');
             document.getElementById('pdfExportOverlay').classList.add('hidden');
+        }
+    </script>
+
+    <!-- Add length display update functionality -->
+    <script>
+        const aiLengthSlider = document.getElementById('aiLength');
+        const aiLengthDisplay = document.getElementById('aiLengthDisplay');
+        
+        if (aiLengthSlider && aiLengthDisplay) {
+            aiLengthSlider.addEventListener('input', function() {
+                const value = this.value;
+                aiLengthDisplay.textContent = `${value} words`;
+                
+                // Update slider color based on length
+                if (value < 200) {
+                    this.style.background = 'linear-gradient(to right, #10B981 0%, #10B981 ' + ((value - 50) / 1450 * 100) + '%, #E5E7EB ' + ((value - 50) / 1450 * 100) + '%, #E5E7EB 100%)';
+                } else if (value < 800) {
+                    this.style.background = 'linear-gradient(to right, #F59E0B 0%, #F59E0B ' + ((value - 50) / 1450 * 100) + '%, #E5E7EB ' + ((value - 50) / 1450 * 100) + '%, #E5E7EB 100%)';
+                } else {
+                    this.style.background = 'linear-gradient(to right, #EF4444 0%, #EF4444 ' + ((value - 50) / 1450 * 100) + '%, #E5E7EB ' + ((value - 50) / 1450 * 100) + '%, #E5E7EB 100%)';
+                }
+            });
+            
+            // Initialize the display
+            aiLengthSlider.dispatchEvent(new Event('input'));
+        }
+        
+        // Function to simulate streaming text display
+        function simulateStreamingText(fullText, container, onComplete) {
+            // Clear the container
+            container.innerHTML = '';
+            
+            // Create a typing indicator
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'flex items-center text-textSecondary text-sm mb-4';
+            typingIndicator.innerHTML = `
+                <div class="flex items-center">
+                    <div class="animate-pulse flex space-x-1 mr-2">
+                        <div class="w-2 h-2 bg-primary rounded-full"></div>
+                        <div class="w-2 h-2 bg-primary rounded-full animation-delay-200"></div>
+                        <div class="w-2 h-2 bg-primary rounded-full animation-delay-400"></div>
+                    </div>
+                    <span>AI is writing...</span>
+                </div>
+            `;
+            container.appendChild(typingIndicator);
+            
+            // Create the content container with better formatting
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'prose max-w-none text-primary-adaptive';
+            container.appendChild(contentDiv);
+            
+            // Process text to identify paragraphs and format properly
+            const paragraphs = fullText.split('\n').filter(p => p.trim());
+            let currentParagraphIndex = 0;
+            let currentCharIndex = 0;
+            let currentParagraphElement = null;
+            
+            // Function to create a new paragraph element
+            function createParagraphElement(text) {
+                const p = document.createElement('p');
+                p.className = 'mb-4 leading-relaxed';
+                
+                // Check if this looks like a title (short, usually first paragraph, or starts with certain patterns)
+                if (text.length < 100 && (currentParagraphIndex === 0 || /^(Chapter|Part|\d+\.)/i.test(text.trim()))) {
+                    p.className = 'text-2xl font-bold mb-6 text-primary border-b-2 border-primary pb-2';
+                }
+                
+                return p;
+            }
+            
+            // Streaming animation
+            function streamNextChunk() {
+                if (currentParagraphIndex >= paragraphs.length) {
+                    // Remove typing indicator
+                    typingIndicator.remove();
+                    // Animation complete
+                    if (onComplete) onComplete();
+                    return;
+                }
+                
+                const currentParagraph = paragraphs[currentParagraphIndex];
+                
+                // Create new paragraph element if needed
+                if (!currentParagraphElement) {
+                    currentParagraphElement = createParagraphElement(currentParagraph);
+                    contentDiv.appendChild(currentParagraphElement);
+                    currentCharIndex = 0;
+                }
+                
+                // Add characters gradually
+                const chunkSize = Math.random() * 5 + 2; // Random chunk size for more natural feel
+                const endIndex = Math.min(currentCharIndex + chunkSize, currentParagraph.length);
+                
+                currentParagraphElement.textContent = currentParagraph.substring(0, endIndex);
+                currentCharIndex = endIndex;
+                
+                // Check if paragraph is complete
+                if (currentCharIndex >= currentParagraph.length) {
+                    currentParagraphIndex++;
+                    currentParagraphElement = null;
+                    
+                    // Small pause between paragraphs
+                    setTimeout(() => {
+                        streamNextChunk();
+                    }, 200);
+                } else {
+                    // Continue with current paragraph
+                    setTimeout(() => {
+                        streamNextChunk();
+                    }, Math.random() * 50 + 20); // Variable speed for natural feel
+                }
+                
+                // Auto-scroll to keep the typing area in view
+                container.scrollTop = container.scrollHeight;
+            }
+            
+            // Start the streaming animation after a short delay
+            setTimeout(() => {
+                streamNextChunk();
+            }, 500);
         }
     </script>
 </body>

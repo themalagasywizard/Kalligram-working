@@ -455,21 +455,21 @@ const timeoutPromise = (ms, message) => new Promise((_, reject) =>
 
 // Helper function to calculate dynamic timeout based on tokens and mode
 const calculateTimeout = (maxTokens, mode, isDeepSeekModel) => {
-    // Increased base timeouts for all requests
-    const BASE_TIMEOUT = mode === 'chat' ? 30000 : 45000;   // Increased base timeout
-    const MAX_TIMEOUT = 90000;   // 90 seconds maximum to stay within Netlify 120s limit
-    const MIN_TIMEOUT = mode === 'chat' ? 20000 : 30000;    // Increased minimum timeout
-    const MS_PER_TOKEN = mode === 'chat' ? 30 : 60;     // More efficient per-token scaling
+    // Significantly increased timeouts for longer content
+    const BASE_TIMEOUT = mode === 'chat' ? 45000 : 120000;   // 2 minutes for generate mode
+    const MAX_TIMEOUT = 180000;   // 3 minutes maximum (well within Netlify limits)
+    const MIN_TIMEOUT = mode === 'chat' ? 30000 : 60000;    // Increased minimum timeout
+    const MS_PER_TOKEN = mode === 'chat' ? 40 : 80;     // More generous per-token scaling
 
     // Give DeepSeek more time as it tends to require longer processing
     if (isDeepSeekModel) {
         // Add system message complexity factor - our template is large
-        const systemMessageComplexityFactor = 15000; // Add 15 seconds for the complex system message
+        const systemMessageComplexityFactor = 30000; // Add 30 seconds for the complex system message
         const scaledTimeout = BASE_TIMEOUT + (maxTokens * MS_PER_TOKEN) + systemMessageComplexityFactor;
         return Math.min(MAX_TIMEOUT, Math.max(MIN_TIMEOUT, scaledTimeout));
     } else {
-        // Also increase non-DeepSeek timeouts
-        return mode === 'chat' ? 40000 : 70000;
+        // Also increase non-DeepSeek timeouts significantly
+        return mode === 'chat' ? 60000 : 150000; // 2.5 minutes for generate mode
     }
 };
 
@@ -694,7 +694,8 @@ exports.handler = async (event) => {
             tone = '', 
             length = '500',
             user_id = '',
-            project_id = ''
+            project_id = '',
+            stream = false  // Add streaming support
         } = parsedBody;
 
         if (!prompt) {
@@ -793,7 +794,7 @@ exports.handler = async (event) => {
         const isQwen3Model = modelName.includes('qwen3');
 
         // Convert desired word length to tokens and ensure minimum/maximum bounds based on mode
-        const maxDesiredWords = mode === 'chat' ? 500 : 5000; // Limit chat responses to 500 words max
+        const maxDesiredWords = mode === 'chat' ? 500 : 2000; // Increased to 2000 words for generate mode
         const minDesiredWords = mode === 'chat' ? 50 : 100;   // Different minimums for each mode
         
         const desiredWords = Math.min(Math.max(parseInt(length) || (mode === 'chat' ? 200 : 500), minDesiredWords), maxDesiredWords);
@@ -834,7 +835,7 @@ exports.handler = async (event) => {
             temperature: temperature,
             top_p: 0.95,
             max_tokens: maxTokens,
-            stream: false,
+            stream: stream,
             presence_penalty: presencePenalty,
             frequency_penalty: frequencyPenalty,
             stop: ["###"]  // Add a stop sequence to prevent mid-sentence cutoff
