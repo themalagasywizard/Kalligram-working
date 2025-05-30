@@ -18,6 +18,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -67,6 +69,7 @@
             --surface-background: #ffffff;
             --hover-background: #f9fafb;
             --active-background: #f3f4f6;
+            --primary-light-bg: #E6E9F0;
         }
 
         /* Dark mode color scheme */
@@ -94,6 +97,7 @@
             --surface-background: #374151;
             --hover-background: #374151;
             --active-background: #4B5563;
+            --primary-light-bg: #4B5563;
         }
 
         body {
@@ -862,6 +866,29 @@
             margin-bottom: env(safe-area-inset-bottom, 0) !important;
             transition: transform 0.3s ease !important;
         }
+
+        /* Primary light background class for adaptive theming */
+        .bg-primaryLight {
+            background-color: var(--primary-light-bg);
+        }
+
+        /* Toolbar button active state */
+        .toolbar-btn.active,
+        .toolbar-btn.bg-primaryLight {
+            background-color: var(--primary-light-bg);
+            color: var(--primary);
+        }
+
+        /* Modal and white background fixes */
+        .bg-white-adaptive {
+            background-color: var(--card-background);
+        }
+
+        /* Fix any remaining white backgrounds in modals */
+        .modal-content {
+            background-color: var(--card-background);
+            color: var(--text-primary);
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -904,6 +931,7 @@
             contextCount: document.getElementById('contextCount'),
             contextList: document.getElementById('contextList'),
             saveStatus: document.getElementById('saveStatus'),
+            exportPdfBtn: document.getElementById('exportPdfBtn'),
             
             // New Project Modal
             newProjectModal: document.getElementById('newProjectModal'),
@@ -919,6 +947,9 @@
             loadProjectBtn: document.getElementById('loadProjectBtn'),
         };
 
+        // Expose elements to window object for access from other scripts
+        window.elements = elements;
+
         // Helper Functions
         function showLoading(message = 'Loading...') {
             elements.loadingMessage.textContent = message;
@@ -930,6 +961,10 @@
             elements.loadingOverlay.classList.add('hidden');
             elements.loadingOverlay.classList.remove('flex');
         }
+
+        // Expose helper functions to window object
+        window.showLoading = showLoading;
+        window.hideLoading = hideLoading;
 
         function formatDate(dateString) {
             if (!dateString) return 'Never';
@@ -1086,12 +1121,76 @@
                     chapterElement.innerHTML = `
                         <div class="flex items-center justify-between">
                             <span class="chapter-title">${chapter.title}</span>
+                            <div class="flex items-center space-x-1">
+                                <button class="delete-chapter-btn opacity-0 hover:opacity-100 transition-opacity duration-200 text-red-500 hover:text-red-700 p-1 rounded" title="Delete Chapter" data-chapter-id="${chapter.id}">
+                                    <i class="fas fa-trash text-xs"></i>
+                                </button>
                             <i class="fas fa-grip-lines text-gray-300 cursor-move handle"></i>
+                            </div>
                         </div>
                     `;
                     
                     // Add click handler
                     chapterElement.addEventListener('click', () => selectChapter(chapter.id));
+                    
+                    // Add hover effects to show/hide delete button
+                    chapterElement.addEventListener('mouseenter', () => {
+                        const deleteBtn = chapterElement.querySelector('.delete-chapter-btn');
+                        if (deleteBtn) {
+                            deleteBtn.classList.remove('opacity-0');
+                            deleteBtn.classList.add('opacity-100');
+                        }
+                    });
+                    
+                    chapterElement.addEventListener('mouseleave', () => {
+                        const deleteBtn = chapterElement.querySelector('.delete-chapter-btn');
+                        if (deleteBtn) {
+                            deleteBtn.classList.remove('opacity-100');
+                            deleteBtn.classList.add('opacity-0');
+                        }
+                    });
+                    
+                    // Add delete button click handler
+                    const deleteBtn = chapterElement.querySelector('.delete-chapter-btn');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation(); // Prevent chapter selection
+                            
+                            // Show confirmation dialog
+                            const confirmed = confirm(`Are you sure you want to delete "${chapter.title}"? This action cannot be undone.`);
+                            if (!confirmed) return;
+                            
+                            try {
+                                showLoading('Deleting chapter...');
+                                
+                                // Delete from database
+                                const { error } = await chapters.delete(chapter.id);
+                                
+                                if (error) throw error;
+                                
+                                // Remove from cache
+                                appState.chapterCache.delete(chapter.id);
+                                
+                                // If this was the current chapter, clear the editor
+                                if (appState.currentChapter && appState.currentChapter.id === chapter.id) {
+                                    appState.currentChapter = null;
+                                    elements.chapterTitle.textContent = 'Select a chapter';
+                                    elements.editorContent.innerHTML = '<p class="mb-4">Select a chapter to start writing...</p>';
+                                    updateWordCount();
+                                }
+                                
+                                // Reload chapters
+                                await loadChapters(appState.currentProject.id);
+                                
+                                hideLoading();
+                                showToast('Chapter deleted successfully', 'success');
+                            } catch (error) {
+                                console.error('Error deleting chapter:', error);
+                                hideLoading();
+                                showToast('Failed to delete chapter: ' + (error.message || 'Unknown error'), 'error');
+                            }
+                        });
+                    }
                     
                     // Add double-click handler for renaming
                     chapterElement.addEventListener('dblclick', (e) => {
@@ -1472,6 +1571,9 @@
                 }, 300);
             }, 3000);
         }
+
+        // Expose showToast to window object
+        window.showToast = showToast;
 
         // Toggle Load Project Panel
         function toggleLoadProjectPanel() {
@@ -1898,34 +2000,17 @@
 
             // Call the setup function
             setupProjectTitleRename();
-        }
-
-        // Initialization
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // Check if user is authenticated
-                const { data: { user } } = await auth.getUser();
-                if (!user) {
-                    window.location.href = '/auth/auth.html';
-                    return;
-                }
-                
-                appState.currentUser = user;
-                
-                // Setup UI event listeners
-                setupEventListeners();
-                
-                // Load projects
-                await loadProjects();
-                
-                // Load context items
-                await loadContextItems();
-                
-            } catch (error) {
-                console.error('Error initializing app:', error);
-                hideLoading();
+            
+            // PDF Export Button - Show preview first
+            if (elements.exportPdfBtn) {
+                elements.exportPdfBtn.addEventListener('click', showPdfPreview);
             }
-        });
+        }
+        
+        // Expose functions to window object for access from other scripts
+        window.setupEventListeners = setupEventListeners;
+        window.loadProjects = loadProjects;
+        window.loadContextItems = loadContextItems;
     </script>
 
     <script type="module">
@@ -2092,7 +2177,7 @@
                         <span id="lastEdited">Loading...</span>
                     </div>
                 </div>
-            </div>
+                </div>
 
             <!-- Chapters -->
             <div class="mb-6">
@@ -2136,7 +2221,7 @@
 
             <!-- Export -->
             <div class="mb-6">
-                <button class="btn btn-success w-full">
+                <button id="exportPdfBtn" class="btn btn-success w-full">
                     <i class="fas fa-file-pdf"></i>
                     Export PDF
                 </button>
@@ -2356,7 +2441,7 @@
 
     <!-- AI Preview Modal (Hidden by default) -->
     <div class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center modal" id="aiModal">
-        <div class="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 shadow-md-custom fade-in">
+        <div class="bg-white-adaptive rounded-xl p-6 max-w-2xl w-full mx-4 shadow-md-custom fade-in modal-content">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-bold text-primary">AI Suggestion</h2>
                 <button class="text-gray-400 hover:text-gray-600" id="closeModal">
@@ -2404,7 +2489,7 @@
 
     <!-- Context Manager Modal (Hidden by default) -->
     <div class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center modal" id="contextModal">
-        <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 shadow-md-custom fade-in overflow-y-auto max-h-[90vh]">
+        <div class="bg-white-adaptive rounded-xl p-6 max-w-4xl w-full mx-4 shadow-md-custom fade-in overflow-y-auto max-h-[90vh] modal-content">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-bold text-primary">Manage Story Context</h2>
                 <button class="text-gray-400 hover:text-gray-600" id="closeContextModal">
@@ -2423,7 +2508,7 @@
             <!-- Context Items List -->
                         <div class="mb-4">
                 <!-- Character Tree View (for Characters tab) -->
-                <div id="characterTreeView" class="bg-white rounded-lg p-3 shadow-sm-custom">
+                <div id="characterTreeView" class="bg-white-adaptive rounded-lg p-3 shadow-sm-custom">
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="text-sm font-semibold text-primary">Characters Network</h3>
                         <div class="flex items-center space-x-2">
@@ -2466,7 +2551,7 @@
                         
                         <!-- Network area interaction overlay -->
                         <div id="networkInteractionOverlay" class="absolute inset-0 cursor-pointer hidden">
-                            <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-md-custom p-3 text-center">
+                            <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white-adaptive rounded-lg shadow-md-custom p-3 text-center">
                                 <button class="btn btn-primary text-sm" id="addCharacterFromNetworkBtn">
                                     <i class="fas fa-plus mr-1"></i>
                                     Add Character Here
@@ -2503,7 +2588,7 @@
                         <span class="text-xs text-textSecondary" id="contextItemCount">3 items</span>
                     </div>
                     <div class="space-y-1 max-h-32 overflow-y-auto" id="contextItemsList">
-                        <div class="p-2 text-sm bg-white rounded flex justify-between items-center">
+                        <div class="p-2 text-sm bg-white-adaptive rounded flex justify-between items-center">
                             <div>
                                 <div class="font-medium">John Doe</div>
                                 <div class="text-xs text-textSecondary">Protagonist</div>
@@ -2517,7 +2602,7 @@
                                 </button>
                 </div>
                     </div>
-                        <div class="p-2 text-sm bg-white rounded flex justify-between items-center">
+                        <div class="p-2 text-sm bg-white-adaptive rounded flex justify-between items-center">
                             <div>
                                 <div class="font-medium">New York City</div>
                                 <div class="text-xs text-textSecondary">Setting</div>
@@ -2531,11 +2616,11 @@
                                 </button>
                 </div>
                     </div>
-                        <div class="p-2 text-sm bg-white rounded flex justify-between items-center">
+                        <div class="p-2 text-sm bg-white-adaptive rounded flex justify-between items-center">
                             <div>
                                 <div class="font-medium">The Accident</div>
-                                <div class="text-xs text-textSecondary">Timeline</div>
-                            </div>
+                                <div class="text-xs text-textSecondary">Timeline Event</div>
+                    </div>
                             <div>
                                 <button class="text-primary hover:text-opacity-80 mr-2" title="Edit">
                                     <i class="fas fa-edit"></i>
@@ -2543,8 +2628,8 @@
                                 <button class="text-error hover:text-opacity-80" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
-                            </div>
-                        </div>
+                </div>
+                    </div>
                     </div>
                     </div>
                 </div>
@@ -4131,7 +4216,7 @@
 
     <!-- New Project Modal -->
     <div class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center modal" id="newProjectModal">
-        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-md-custom fade-in">
+        <div class="bg-white-adaptive rounded-xl p-6 max-w-md w-full mx-4 shadow-md-custom fade-in modal-content">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-bold text-primary">Create New Project</h2>
                 <button class="text-gray-400 hover:text-gray-600" id="closeNewProjectModal">
@@ -4157,7 +4242,7 @@
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white p-5 rounded-lg shadow-lg text-center">
+        <div class="bg-white-adaptive p-5 rounded-lg shadow-lg text-center">
             <div class="animate-spin mb-3 mx-auto w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
             <p id="loadingMessage">Loading...</p>
         </div>
@@ -4402,6 +4487,445 @@
                 }
             });
         });
+    </script>
+
+    <!-- PDF Export Functionality -->
+    <script>
+        
+        // PDF Export Functionality
+        async function exportToPDF() {
+            try {
+                // Use stored chapters from preview
+                const projectChapters = window.pdfExportChapters;
+                if (!projectChapters) {
+                    window.showToast('No chapters to export', 'error');
+                    return;
+                }
+                
+                // Hide preview modal
+                closePdfPreview();
+                
+                window.showLoading('Generating PDF...');
+                
+                // Get export options
+                const includeCoverPage = document.getElementById('includeCoverPage').checked;
+                const fontSize = parseInt(document.getElementById('pdfFontSize').value);
+                const lineSpacing = parseFloat(document.getElementById('pdfLineSpacing').value);
+                const chapterPageBreaks = document.getElementById('chapterPageBreaks').checked;
+                
+                // Create new jsPDF instance
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Set up document properties
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 20;
+                const lineHeight = fontSize * lineSpacing * 0.35; // Convert to PDF units
+                const maxLineWidth = pageWidth - (margin * 2);
+                
+                let yPosition = margin;
+                
+                // Add cover page if enabled
+                if (includeCoverPage) {
+                    doc.setFontSize(24);
+                    doc.setFont(undefined, 'bold');
+                    const titleLines = doc.splitTextToSize(window.appState.currentProject.title, maxLineWidth);
+                    titleLines.forEach(line => {
+                        if (yPosition > pageHeight - margin) {
+                            doc.addPage();
+                            yPosition = margin;
+                        }
+                        doc.text(line, margin, yPosition);
+                        yPosition += lineHeight * 2;
+                    });
+                    
+                    // Add description if available
+                    if (window.appState.currentProject.description) {
+                        yPosition += lineHeight;
+                        doc.setFontSize(fontSize);
+                        doc.setFont(undefined, 'normal');
+                        const descLines = doc.splitTextToSize(window.appState.currentProject.description, maxLineWidth);
+                        descLines.forEach(line => {
+                            if (yPosition > pageHeight - margin) {
+                                doc.addPage();
+                                yPosition = margin;
+                            }
+                            doc.text(line, margin, yPosition);
+                            yPosition += lineHeight;
+                        });
+                    }
+                    
+                    // Add date
+                    yPosition += lineHeight * 2;
+                    doc.setFontSize(fontSize - 1);
+                    doc.text(`Generated on ${new Date().toLocaleDateString()}`, margin, yPosition);
+                    
+                    // Add new page for chapters
+                    doc.addPage();
+                    yPosition = margin;
+                }
+                
+                // Process each chapter
+                for (let i = 0; i < projectChapters.length; i++) {
+                    const chapter = projectChapters[i];
+                    
+                    // Start each chapter on a new page if option is enabled (except the first one which already has a new page)
+                    if (i > 0 && chapterPageBreaks) {
+                        doc.addPage();
+                        yPosition = margin;
+                    } else if (i > 0) {
+                        // If not starting on new pages, add extra space between chapters
+                        yPosition += lineHeight * 3;
+                        // Check if we need a new page due to space
+                        if (yPosition > pageHeight - margin - 40) {
+                            doc.addPage();
+                            yPosition = margin;
+                        }
+                    }
+                    
+                    // Add chapter title
+                    doc.setFontSize(fontSize + 4);
+                    doc.setFont(undefined, 'bold');
+                    
+                    const chapterTitleLines = doc.splitTextToSize(chapter.title, maxLineWidth);
+                    chapterTitleLines.forEach(line => {
+                        doc.text(line, margin, yPosition);
+                        yPosition += lineHeight * 1.5;
+                    });
+                    
+                    yPosition += lineHeight * 2; // Extra space after chapter title
+                    
+                    // Add chapter content
+                    if (chapter.content) {
+                        doc.setFontSize(fontSize);
+                        doc.setFont(undefined, 'normal');
+                        
+                        // Remove HTML tags and clean up the content
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = chapter.content;
+                        const cleanContent = tempDiv.textContent || tempDiv.innerText || '';
+                        
+                        // Split content into paragraphs
+                        const paragraphs = cleanContent.split('\n').filter(p => p.trim().length > 0);
+                        
+                        paragraphs.forEach(paragraph => {
+                            const lines = doc.splitTextToSize(paragraph.trim(), maxLineWidth);
+                            
+                            // Check if we need space for the paragraph (avoid orphaned paragraphs)
+                            if (yPosition + (lines.length * lineHeight) > pageHeight - margin) {
+                                doc.addPage();
+                                yPosition = margin;
+                            }
+                            
+                            lines.forEach(line => {
+                                // Check if we need a new page
+                                if (yPosition > pageHeight - margin) {
+                                    doc.addPage();
+                                    yPosition = margin;
+                                }
+                                
+                                doc.text(line, margin, yPosition);
+                                yPosition += lineHeight;
+                            });
+                            
+                            // Add space between paragraphs
+                            yPosition += lineHeight * 0.5;
+                        });
+                    }
+                }
+                
+                // Generate filename
+                const sanitizedTitle = window.appState.currentProject.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const filename = `${sanitizedTitle}_${new Date().toISOString().split('T')[0]}.pdf`;
+                
+                // Save the PDF
+                doc.save(filename);
+                
+                window.hideLoading();
+                window.showToast('PDF exported successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                window.hideLoading();
+                window.showToast('Failed to export PDF: ' + (error.message || 'Unknown error'), 'error');
+            }
+        }
+        
+        // Add event listener for PDF export button when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const exportPdfBtn = document.getElementById('exportPdfBtn');
+            if (exportPdfBtn) {
+                exportPdfBtn.addEventListener('click', showPdfPreview);
+            }
+            
+            // PDF Preview Modal event listeners
+            const closePdfPreviewBtn = document.getElementById('closePdfPreviewModal');
+            const cancelPdfExportBtn = document.getElementById('cancelPdfExport');
+            const confirmPdfExportBtn = document.getElementById('confirmPdfExport');
+            const pdfExportOverlay = document.getElementById('pdfExportOverlay');
+            
+            if (closePdfPreviewBtn) closePdfPreviewBtn.addEventListener('click', closePdfPreview);
+            if (cancelPdfExportBtn) cancelPdfExportBtn.addEventListener('click', closePdfPreview);
+            if (confirmPdfExportBtn) confirmPdfExportBtn.addEventListener('click', exportToPDF);
+            if (pdfExportOverlay) pdfExportOverlay.addEventListener('click', closePdfPreview);
+            
+            // Update preview when options change
+            const previewOptions = ['includeCoverPage', 'pdfFontSize', 'pdfLineSpacing', 'chapterPageBreaks'];
+            previewOptions.forEach(optionId => {
+                const element = document.getElementById(optionId);
+                if (element) {
+                    element.addEventListener('change', () => {
+                        // Re-generate preview if modal is open
+                        if (window.pdfExportChapters && !document.getElementById('pdfPreviewModal').classList.contains('hidden')) {
+                            generatePreviewContent(window.pdfExportChapters);
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+
+    <script>
+        // Initialization
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Wait for supabaseServices to be available
+                let attempts = 0;
+                while (!window.supabaseServices && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (!window.supabaseServices) {
+                    throw new Error('Supabase services not available');
+                }
+                
+                // Check if user is authenticated
+                const { data: { user } } = await window.supabaseServices.auth.getUser();
+                if (!user) {
+                    window.location.href = '/auth/auth.html';
+                    return;
+                }
+                
+                window.appState.currentUser = user;
+                
+                // Setup UI event listeners
+                setupEventListeners();
+                
+                // Load projects
+                await loadProjects();
+                
+                // Load context items
+                await loadContextItems();
+                
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                if (typeof hideLoading === 'function') {
+                    hideLoading();
+                }
+            }
+        });
+    </script>
+
+    <!-- PDF Preview Modal -->
+    <div class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center modal z-50" id="pdfPreviewModal">
+        <div class="bg-white-adaptive rounded-xl p-6 max-w-4xl w-full mx-4 shadow-md-custom fade-in overflow-y-auto max-h-[90vh] modal-content relative z-60">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-primary">PDF Preview</h2>
+                <button class="text-gray-400 hover:text-gray-600" id="closePdfPreviewModal">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Preview Options -->
+            <div class="border-b border-gray-200 mb-4 pb-4">
+                <div class="flex flex-wrap items-center gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Include Cover Page</label>
+                        <input type="checkbox" id="includeCoverPage" checked class="rounded border-gray-300 text-primary focus:ring-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Font Size</label>
+                        <select id="pdfFontSize" class="border border-gray-200 rounded-lg p-2 text-sm">
+                            <option value="10">Small (10pt)</option>
+                            <option value="11" selected>Normal (11pt)</option>
+                            <option value="12">Large (12pt)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Line Spacing</label>
+                        <select id="pdfLineSpacing" class="border border-gray-200 rounded-lg p-2 text-sm">
+                            <option value="1.0">Single</option>
+                            <option value="1.2" selected>1.2x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2.0">Double</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Chapter Page Breaks</label>
+                        <input type="checkbox" id="chapterPageBreaks" checked class="rounded border-gray-300 text-primary focus:ring-primary">
+                        <span class="ml-2 text-sm text-gray-600">Start each chapter on a new page</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Preview Content -->
+            <div class="bg-surface border border-adaptive rounded-lg p-6 mb-4 max-h-96 overflow-y-auto">
+                <div id="pdfPreviewContent" class="text-primary-adaptive leading-relaxed">
+                    <!-- Preview content will be populated here -->
+                </div>
+            </div>
+            
+            <!-- Statistics -->
+            <div class="bg-primaryLight p-3 rounded-lg mb-4">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-sm">
+                    <div>
+                        <div class="font-semibold text-primary" id="previewChapterCount">0</div>
+                        <div class="text-textSecondary">Chapters</div>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-primary" id="previewWordCount">0</div>
+                        <div class="text-textSecondary">Words</div>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-primary" id="previewPageCount">0</div>
+                        <div class="text-textSecondary">Est. Pages</div>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-primary" id="previewFileSize">0 KB</div>
+                        <div class="text-textSecondary">Est. Size</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex justify-end space-x-3">
+                <button id="cancelPdfExport" class="btn btn-secondary">Cancel</button>
+                <button id="confirmPdfExport" class="btn btn-success">
+                    <i class="fas fa-file-pdf mr-2"></i>
+                    Export PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Export Overlay -->
+    <div id="pdfExportOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
+
+    <!-- Show PDF Preview Modal -->
+    <script>
+        async function showPdfPreview() {
+            try {
+                if (!window.appState.currentProject) {
+                    window.showToast('No project selected', 'error');
+                    return;
+                }
+                
+                // Get all chapters for the current project
+                const { data: projectChapters, error } = await window.supabaseServices.chapters.getByProject(window.appState.currentProject.id);
+                
+                if (error) throw error;
+                
+                if (!projectChapters || projectChapters.length === 0) {
+                    window.showToast('No chapters to export', 'error');
+                    return;
+                }
+                
+                // Sort chapters by order_index
+                projectChapters.sort((a, b) => a.order_index - b.order_index);
+                
+                // Store chapters for export
+                window.pdfExportChapters = projectChapters;
+                
+                // Generate preview content
+                generatePreviewContent(projectChapters);
+                
+                // Show the preview modal (modal already has its own background overlay)
+                document.getElementById('pdfPreviewModal').classList.remove('hidden');
+                document.getElementById('pdfPreviewModal').classList.add('flex');
+                
+            } catch (error) {
+                console.error('Error generating PDF preview:', error);
+                window.showToast('Failed to generate preview: ' + (error.message || 'Unknown error'), 'error');
+            }
+        }
+        
+        // Generate preview content
+        function generatePreviewContent(chapters) {
+            const previewContent = document.getElementById('pdfPreviewContent');
+            const includeCoverPage = document.getElementById('includeCoverPage').checked;
+            const chapterPageBreaks = document.getElementById('chapterPageBreaks').checked;
+            
+            let contentHtml = '';
+            let totalWordCount = 0;
+            
+            // Add cover page if enabled
+            if (includeCoverPage) {
+                contentHtml += `
+                    <div class="mb-8 pb-6 border-b border-adaptive">
+                        <h1 class="text-3xl font-bold mb-4 text-primary">${window.appState.currentProject.title}</h1>
+                        ${window.appState.currentProject.description ? `<p class="text-lg text-textSecondary">${window.appState.currentProject.description}</p>` : ''}
+                        <p class="text-sm text-textSecondary mt-4">Generated on ${new Date().toLocaleDateString()}</p>
+                    </div>
+                `;
+            }
+            
+            // Add chapters
+            chapters.forEach((chapter, index) => {
+                contentHtml += `
+                    <div class="mb-6 ${index > 0 ? 'pt-4 border-t border-adaptive' : ''}">
+                        <h2 class="text-xl font-bold mb-3 text-primary">${chapter.title}</h2>
+                `;
+                
+                if (chapter.content) {
+                    // Clean HTML content
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = chapter.content;
+                    const cleanContent = tempDiv.textContent || tempDiv.innerText || '';
+                    
+                    // Count words
+                    const wordCount = cleanContent.trim().split(/\s+/).filter(word => word.length > 0).length;
+                    totalWordCount += wordCount;
+                    
+                    // Add content preview (first 300 words)
+                    const words = cleanContent.trim().split(/\s+/).filter(word => word.length > 0);
+                    const previewWords = words.slice(0, 300);
+                    const isFullContent = words.length <= 300;
+                    
+                    contentHtml += `
+                        <div class="text-sm text-primary-adaptive leading-relaxed">
+                            ${previewWords.join(' ')}
+                            ${!isFullContent ? '<span class="text-textSecondary italic">... (truncated for preview)</span>' : ''}
+                        </div>
+                        <p class="text-xs text-textSecondary mt-2">${wordCount} words</p>
+                    `;
+                }
+                
+                contentHtml += '</div>';
+            });
+            
+            previewContent.innerHTML = contentHtml;
+            
+            // Update statistics
+            document.getElementById('previewChapterCount').textContent = chapters.length;
+            document.getElementById('previewWordCount').textContent = totalWordCount.toLocaleString();
+            
+            // Estimate pages (assuming ~250 words per page)
+            const estimatedPages = Math.ceil(totalWordCount / 250);
+            document.getElementById('previewPageCount').textContent = estimatedPages;
+            
+            // Estimate file size (rough calculation)
+            const estimatedSizeKB = Math.ceil((totalWordCount * 8) / 1024); // Rough estimate
+            document.getElementById('previewFileSize').textContent = `${estimatedSizeKB} KB`;
+        }
+        
+        // Close PDF Preview Modal
+        function closePdfPreview() {
+            document.getElementById('pdfPreviewModal').classList.add('hidden');
+            document.getElementById('pdfPreviewModal').classList.remove('flex');
+            document.getElementById('pdfExportOverlay').classList.add('hidden');
+        }
     </script>
 </body>
 </html> 
