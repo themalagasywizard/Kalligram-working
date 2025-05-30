@@ -2121,6 +2121,11 @@
         });
             }
         }
+        
+        // Expose functions to window object for access from other scripts
+        window.setupEventListeners = setupEventListeners;
+        window.loadProjects = loadProjects;
+        window.loadContextItems = loadContextItems;
     </script>
 
     <script type="module">
