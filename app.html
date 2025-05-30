@@ -37,7 +37,8 @@
                         warning: '#FBBF24',
                     }
                 }
-            }
+            },
+            darkMode: 'class'
         }
     </script>
     <!-- Custom Styles -->
@@ -53,12 +54,53 @@
             --success: #34D399;
             --error: #EF4444;
             --warning: #FBBF24;
+            
+            /* Border and shadow colors */
+            --border-color: rgba(107, 114, 128, 0.1);
+            --border-light: rgba(229, 231, 235, 1);
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            
+            /* Card and surface colors */
+            --card-background: #ffffff;
+            --surface-background: #ffffff;
+            --hover-background: #f9fafb;
+            --active-background: #f3f4f6;
+        }
+
+        /* Dark mode color scheme */
+        .dark {
+            --primary: #6366F1;
+            --primary-light: #374151;
+            --secondary: #9CA3AF;
+            --accent: #F472B6;
+            --background: #111827;
+            --text-primary: #F9FAFB;
+            --text-secondary: #9CA3AF;
+            --success: #10B981;
+            --error: #EF4444;
+            --warning: #F59E0B;
+            
+            /* Border and shadow colors for dark mode */
+            --border-color: rgba(75, 85, 99, 0.3);
+            --border-light: rgba(75, 85, 99, 0.2);
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+            
+            /* Card and surface colors for dark mode */
+            --card-background: #1F2937;
+            --surface-background: #374151;
+            --hover-background: #374151;
+            --active-background: #4B5563;
         }
 
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--background);
             color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .editor-content {
@@ -68,9 +110,10 @@
 
         .sidebar {
             width: 250px;
-            background-color: var(--primary-light);
-            border-right: 1px solid rgba(107, 114, 128, 0.1);
-            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.03);
+            background-color: var(--card-background);
+            border-right: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .chapter-item {
@@ -79,13 +122,13 @@
         }
 
         .chapter-item:hover {
-            background-color: white;
+            background-color: var(--hover-background);
             border-left: 3px solid var(--primary);
             transform: translateX(2px);
         }
 
         .chapter-item.active {
-            background-color: white;
+            background-color: var(--hover-background);
             border-left: 3px solid var(--primary);
             color: var(--primary);
             font-weight: 500;
@@ -114,6 +157,10 @@
             box-shadow: 0 4px 6px rgba(75, 94, 170, 0.25);
         }
 
+        .dark .btn-primary:hover {
+            background-color: #4F46E5;
+        }
+
         .btn-success {
             background-color: var(--success);
             color: white;
@@ -124,6 +171,10 @@
             background-color: #2bbb89;
             transform: translateY(-1px);
             box-shadow: 0 4px 6px rgba(52, 211, 153, 0.25);
+        }
+
+        .dark .btn-success:hover {
+            background-color: #059669;
         }
 
         .btn-error {
@@ -146,15 +197,103 @@
             justify-content: center;
             border-radius: 6px;
             transition: all 0.2s ease;
+            background-color: transparent;
+            color: var(--text-primary);
         }
 
         .toolbar-btn:hover {
-            background-color: var(--primary-light);
+            background-color: var(--hover-background);
             color: var(--primary);
         }
 
+        /* Dark mode toggle button styles */
+        .theme-toggle {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background-color: transparent;
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--hover-background);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Card and surface styling */
+        .card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .surface {
+            background-color: var(--surface-background);
+            transition: background-color 0.3s ease;
+        }
+
+        /* Input and form styling */
+        input, textarea, select {
+            background-color: var(--card-background);
+            border-color: var(--border-light);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        /* Modal styling */
         .modal {
             transition: opacity 0.3s ease;
+        }
+
+        .modal .bg-white {
+            background-color: var(--card-background);
+            color: var(--text-primary);
+        }
+
+        /* Header styling */
+        header {
+            background-color: var(--card-background);
+            border-color: var(--border-light);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Custom background classes for adaptive theming */
+        .bg-card {
+            background-color: var(--card-background);
+        }
+
+        .bg-surface {
+            background-color: var(--surface-background);
+        }
+
+        .text-primary-adaptive {
+            color: var(--text-primary);
+        }
+
+        .text-secondary-adaptive {
+            color: var(--text-secondary);
+        }
+
+        .border-adaptive {
+            border-color: var(--border-light);
+        }
+
+        /* Adaptive hover background class */
+        .hover-bg-adaptive:hover {
+            background-color: var(--hover-background);
         }
 
         @keyframes fadeIn {
@@ -176,6 +315,10 @@
             background-repeat: no-repeat;
         }
 
+        .dark input[type=range] {
+            background: #374151;
+        }
+
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -184,7 +327,7 @@
             border-radius: 50%;
             background: var(--accent);
             cursor: pointer;
-            border: 2px solid white;
+            border: 2px solid var(--card-background);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
@@ -197,6 +340,10 @@
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
+        }
+
+        .dark select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E");
         }
 
         /* Character Tree Visualization */
@@ -264,15 +411,17 @@
         .character-tooltip {
             position: absolute;
             width: 220px;
-            background-color: white;
+            background-color: var(--card-background);
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: var(--shadow-lg);
             padding: 1rem;
             z-index: 30;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.2s ease;
             transform: translateX(-50%) translateY(-100%) translateY(-10px);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
         }
 
         .character-node:hover .character-tooltip {
@@ -285,6 +434,9 @@
             flex: 1;
             min-width: 120px;
             padding: 0.5rem 2rem;
+            background-color: var(--card-background);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
         }
 
         .ai-mode-btn.active {
@@ -294,7 +446,7 @@
         }
 
         .ai-mode-btn:not(.active):hover {
-            background-color: var(--primaryLight);
+            background-color: var(--hover-background);
             transform: translateY(-1px);
         }
 
@@ -331,17 +483,18 @@
 
         .chat-message.user {
             margin-left: auto;
-            background-color: white;
-            border: 1px solid var(--primary-light);
+            background-color: var(--card-background);
+            border: 1px solid var(--border-light);
             border-radius: 1rem 1rem 0 1rem;
             color: var(--text-primary);
         }
 
         .chat-message.ai {
             margin-right: auto;
-            background-color: var(--primary-light);
+            background-color: var(--surface-background);
             border-radius: 1rem 1rem 1rem 0;
             color: var(--text-primary);
+            border: 1px solid var(--border-light);
         }
 
         .chat-message p {
@@ -452,7 +605,7 @@
                 right: 0;
                 width: 100%;
                 height: 56px;
-                background: white;
+                background: var(--card-background);
                 z-index: 50;
                 padding: 0;
                 display: flex;
@@ -466,7 +619,7 @@
                 height: 40px;
                 border-radius: 8px;
                 padding: 0;
-                margin: 0 4px;
+                margin: 0 2px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -480,6 +633,42 @@
             header .btn i {
                 margin: 0;
                 font-size: 1rem;
+            }
+
+            /* Hide logo on mobile */
+            header .w-10.h-10 {
+                display: none;
+            }
+
+            /* Hide Kalligram text on mobile (already hidden with md:block) */
+
+            /* Adjust header sections */
+            header > div:first-child {
+                display: flex;
+                align-items: center;
+                padding-left: 8px;
+                position: relative; /* For save status positioning */
+            }
+
+            header > div:last-child {
+                display: flex;
+                align-items: center;
+                padding-right: 8px;
+                gap: 2px;
+            }
+
+            /* Harmonize theme toggle button with other buttons */
+            header .theme-toggle {
+                width: 40px;
+                height: 40px;
+                margin: 0 2px;
+            }
+
+            /* Harmonize user avatar size */
+            header #userAvatar {
+                width: 40px;
+                height: 40px;
+                margin: 0 2px;
             }
 
             /* Make logo smaller */
@@ -511,7 +700,7 @@
                 left: 0;
                 right: 0;
                 width: 100%;
-                background: white;
+                background: var(--card-background);
                 z-index: 49;
                 padding: 8px;
                 display: flex;
@@ -541,7 +730,7 @@
                 top: 112px; /* Match header + toolbar height */
                 bottom: 0;
                 width: 250px;
-                background: white;
+                background: var(--card-background);
                 z-index: 48;
                 transition: transform 0.3s ease;
                 display: block !important;
@@ -615,7 +804,7 @@
             height: 16px;
             border: 1px solid #d1d5db;
             border-radius: 4px;
-            background-color: white;
+            background-color: var(--card-background);
             cursor: pointer;
             display: inline-flex;
             align-items: center;
@@ -643,6 +832,35 @@
         #contextSelectionPanel {
             transition: max-height 0.3s ease-in-out;
             overflow: hidden;
+        }
+
+        /* Context item styling - similar to chapter items */
+        .context-item {
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .context-item:hover {
+            background-color: var(--hover-background);
+            border-left: 3px solid var(--primary);
+            transform: translateX(2px);
+        }
+
+        /* When keyboard is visible, ensure input stays visible */
+        .keyboard-visible {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            background: var(--card-background) !important;
+            z-index: 100 !important;
+            padding: 10px !important;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1) !important;
+            margin-bottom: env(safe-area-inset-bottom, 0) !important;
+            transition: transform 0.3s ease !important;
         }
     </style>
 </head>
@@ -1209,7 +1427,7 @@
                 if (projectCharacters && projectCharacters.length > 0) {
                     projectCharacters.forEach(character => {
                         const itemElement = document.createElement('div');
-                        itemElement.className = 'p-2 text-sm hover:bg-gray-50 rounded cursor-pointer';
+                        itemElement.className = 'context-item text-sm';
                         
                         itemElement.innerHTML = `
                             <div class="font-medium">${character.name}</div>
@@ -1295,7 +1513,7 @@
 
                 // Create project list HTML
                 projectsList.innerHTML = userProjects.map(project => `
-                    <div class="project-item bg-white rounded-lg p-4 border border-gray-200 hover:border-primary cursor-pointer transition-colors"
+                    <div class="project-item bg-card rounded-lg p-4 border border-adaptive hover:border-primary cursor-pointer transition-colors"
                          data-project-id="${project.id}">
                         <div class="flex items-center justify-between mb-2">
                             <h3 class="font-medium text-primary">${project.title}</h3>
@@ -1773,7 +1991,7 @@
     </script>
 
     <!-- Top Bar -->
-    <header class="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 shadow-sm-custom">
+    <header class="h-16 bg-card border-b border-adaptive flex items-center justify-between px-6 shadow-sm-custom">
                 <div class="flex items-center space-x-4">
             <!-- Mobile Menu Button -->
             <button id="mobileMenuBtn" class="lg:hidden text-gray-500 hover:text-primary">
@@ -1797,24 +2015,28 @@
                 <i class="fas fa-plus"></i>
                 <span class="ml-1">New Project</span>
             </button>
+            <!-- Dark Mode Toggle -->
+            <button id="themeToggle" class="theme-toggle" title="Toggle dark mode">
+                <i id="themeIcon" class="fas fa-moon"></i>
+            </button>
             <div class="relative group">
                 <img id="userAvatar" src="https://ui-avatars.com/api/?name=Guest&background=4B5EAA&color=fff" 
                      alt="User Avatar" 
                      class="w-9 h-9 rounded-full cursor-pointer border-2 border-white hover:border-primary transition-colors">
-                <div class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-md-custom p-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all z-10">
+                <div class="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-md-custom p-2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all z-10">
                     <a href="/profile.html" class="block">
-                        <div class="p-2 hover:bg-gray-50 rounded cursor-pointer flex items-center">
+                        <div class="p-2 hover-bg-adaptive rounded cursor-pointer flex items-center">
                             <i class="fas fa-user-circle text-primary mr-2"></i>
                             <span id="userDisplayName">Guest User</span>
                         </div>
                     </a>
                     <a href="/profile.html#preferences" class="block">
-                        <div class="p-2 hover:bg-gray-50 rounded cursor-pointer flex items-center">
+                        <div class="p-2 hover-bg-adaptive rounded cursor-pointer flex items-center">
                             <i class="fas fa-cog text-secondary mr-2"></i>
                             <span>Settings</span>
                         </div>
                     </a>
-                    <div id="signOutBtn" class="p-2 hover:bg-gray-50 rounded cursor-pointer flex items-center text-error">
+                    <div id="signOutBtn" class="p-2 hover-bg-adaptive rounded cursor-pointer flex items-center text-error">
                         <i class="fas fa-sign-out-alt mr-2"></i>
                         <span>Sign Out</span>
                     </div>
@@ -1827,9 +2049,9 @@
     <div id="sidebarOverlay" class="lg:hidden" onclick="toggleSidebar()"></div>
 
     <!-- Load Project Panel -->
-    <div id="loadProjectPanel" class="fixed right-0 top-0 h-screen w-96 bg-white shadow-lg transform translate-x-full transition-transform duration-300 z-50">
+    <div id="loadProjectPanel" class="fixed right-0 top-0 h-screen w-96 bg-card shadow-lg transform translate-x-full transition-transform duration-300 z-50">
         <div class="h-full flex flex-col">
-            <div class="p-6 border-b border-gray-100">
+            <div class="p-6 border-b border-adaptive">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-xl font-bold text-primary">Load Project</h2>
                     <button id="closeLoadProjectPanel" class="text-gray-400 hover:text-gray-600">
@@ -1837,7 +2059,7 @@
                     </button>
                 </div>
                 <div class="relative">
-                    <input type="text" id="projectSearch" class="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2 focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="Search projects...">
+                    <input type="text" id="projectSearch" class="w-full border border-adaptive rounded-lg pl-10 pr-4 py-2 focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="Search projects...">
                     <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                 </div>
             </div>
@@ -1863,14 +2085,14 @@
         <aside class="sidebar h-full overflow-y-auto p-4">
             <!-- Project Info -->
             <div class="mb-6">
-                <div class="bg-white rounded-lg p-3 shadow-sm-custom mb-4">
+                <div class="bg-card rounded-lg p-3 shadow-sm-custom mb-4">
                     <h2 id="projectTitle" class="text-primary font-medium mb-1 cursor-pointer" title="Double-click to rename">Loading project...</h2>
                     <div class="flex items-center text-xs text-textSecondary">
                         <i class="fas fa-clock mr-1"></i>
                         <span id="lastEdited">Loading...</span>
                     </div>
                 </div>
-                </div>
+            </div>
 
             <!-- Chapters -->
             <div class="mb-6">
@@ -1898,7 +2120,7 @@
                     <h2 class="text-sm font-semibold uppercase tracking-wider text-secondary">Story Context</h2>
                     <span id="contextCount" class="text-xs text-textSecondary">0 items</span>
                     </div>
-                <div class="bg-white rounded-lg p-2 shadow-sm-custom mb-3">
+                <div class="bg-card rounded-lg p-2 shadow-sm-custom mb-3">
                     <div id="contextList" class="space-y-1">
                         <!-- Context items will be loaded here -->
                         <div class="text-center p-2 text-textSecondary text-sm">
@@ -1921,7 +2143,7 @@
             </div>
 
             <!-- Word Count -->
-            <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm-custom text-sm">
+            <div class="flex items-center justify-between bg-card p-3 rounded-lg shadow-sm-custom text-sm">
                 <div>
                     <div class="text-textSecondary">Total Words</div>
                     <div id="wordCount" class="text-xl font-semibold text-primary">0</div>
@@ -1937,9 +2159,9 @@
         </aside>
 
         <!-- Editor Area -->
-        <main class="flex-1 overflow-hidden flex flex-col bg-white">
+        <main class="flex-1 overflow-hidden flex flex-col bg-card">
             <!-- Editor Toolbar -->
-            <div class="bg-white border-b border-gray-100 p-2 flex items-center space-x-2 shadow-sm-custom editor-toolbar">
+            <div class="bg-card border-b border-adaptive p-2 flex items-center space-x-2 shadow-sm-custom editor-toolbar">
                 <!-- Formatting buttons grouped together -->
                 <div class="flex items-center space-x-1">
                     <button class="toolbar-btn" title="Bold">
@@ -1955,7 +2177,7 @@
                         <button class="toolbar-btn" title="Font Size">
                             <i class="fas fa-text-height"></i>
                         </button>
-                        <div class="font-size-dropdown hidden absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
+                        <div class="font-size-dropdown hidden absolute top-full left-0 mt-1 bg-card rounded-lg shadow-lg border border-adaptive py-2 z-10">
                             <button class="block w-full px-4 py-1 text-left hover:bg-primaryLight" data-size="1">Small</button>
                             <button class="block w-full px-4 py-1 text-left hover:bg-primaryLight" data-size="3">Normal</button>
                             <button class="block w-full px-4 py-1 text-left hover:bg-primaryLight" data-size="5">Large</button>
@@ -1977,9 +2199,9 @@
         </div>
 
             <!-- AI Assistant Panel -->
-            <div id="aiAssistPanel" class="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-md-custom transform translate-x-full transition-transform duration-300 z-50 flex flex-col" role="complementary" aria-label="AI Assistant">
+            <div id="aiAssistPanel" class="fixed right-0 top-0 h-screen w-[400px] bg-card shadow-md-custom transform translate-x-full transition-transform duration-300 z-50 flex flex-col" role="complementary" aria-label="AI Assistant">
                 <!-- Panel Header -->
-                <div class="flex-shrink-0 p-4 border-b border-gray-200">
+                <div class="flex-shrink-0 p-4 border-b border-adaptive">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold text-primary">AI Assistant</h2>
                         <button id="closeAiPanel" class="text-gray-400 hover:text-gray-600">
@@ -1988,7 +2210,7 @@
             </div>
 
                     <!-- Mode Toggle -->
-                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-3">
+                    <div class="flex space-x-1 bg-surface p-1 rounded-lg mb-3">
                         <button class="ai-mode-btn flex-1 py-1 px-2 text-sm font-medium rounded active" data-mode="generate">Generate</button>
                         <button class="ai-mode-btn flex-1 py-1 px-2 text-sm font-medium rounded" data-mode="chat">Chat</button>
                     </div>
@@ -2010,7 +2232,7 @@
                 </div>
 
                 <!-- Context Selection Panel -->
-                <div class="flex-shrink-0 bg-primaryLight/20 p-3 border-b border-gray-200">
+                <div class="flex-shrink-0 bg-primaryLight/20 p-3 border-b border-adaptive">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-medium text-secondary">Story Context</span>
                         <button id="toggleContextBtn" class="text-xs text-primary hover:text-primary/80">
@@ -2024,7 +2246,7 @@
                     </div>
                     
                     <!-- Context selection panel (collapsed by default) -->
-                    <div id="contextSelectionPanel" class="hidden mt-3 border-t border-gray-200 pt-3">
+                    <div id="contextSelectionPanel" class="hidden mt-3 border-t border-adaptive pt-3">
                         <!-- Characters section -->
                         <div class="mb-3">
                             <h3 class="text-xs font-medium text-secondary mb-1">Characters</h3>
@@ -2059,9 +2281,9 @@
                     </div>
                     
                     <!-- Chat Input (now at bottom) -->
-                    <div class="flex-shrink-0 p-4 border-t border-gray-200">
+                    <div class="flex-shrink-0 p-4 border-t border-adaptive">
                         <div class="relative">
-                            <textarea id="chatInput" class="w-full min-h-[100px] max-h-[200px] border border-gray-200 rounded-lg p-3 pr-10 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Ask the AI..."></textarea>
+                            <textarea id="chatInput" class="w-full min-h-[100px] max-h-[200px] border border-adaptive rounded-lg p-3 pr-10 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Ask the AI..."></textarea>
                             <button id="chatSubmit" class="absolute right-3 top-3 text-primary hover:text-primary/80 disabled:opacity-50">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
@@ -2077,15 +2299,15 @@
                 <!-- Generate/Edit View -->
                 <div id="generateEditView" class="flex-1 flex flex-col overflow-hidden">
                     <!-- Output Area (now at top) -->
-                    <div id="aiOutput" class="flex-1 bg-gray-50 rounded-lg m-4 p-6 overflow-y-auto">
-                        <p class="text-gray-400 text-sm italic">AI output will appear here...</p>
+                    <div id="aiOutput" class="flex-1 bg-surface rounded-lg m-4 p-6 overflow-y-auto">
+                        <p class="text-secondary-adaptive text-sm italic">AI output will appear here...</p>
             </div>
 
                     <!-- Controls (in middle) -->
                     <div class="flex-shrink-0 space-y-3 px-4">
                         <div>
                             <label class="text-sm font-medium block mb-2">Tone</label>
-                            <select id="aiTone" class="w-full border border-gray-200 rounded-lg p-2 text-sm">
+                            <select id="aiTone" class="w-full border border-adaptive rounded-lg p-2 text-sm">
                                 <option>Suspenseful</option>
                                 <option>Humorous</option>
                                 <option>Dramatic</option>
@@ -2103,9 +2325,9 @@
                 </div>
 
                     <!-- Input Area (now at bottom) -->
-                    <div class="flex-shrink-0 p-4 border-t border-gray-200">
+                    <div class="flex-shrink-0 p-4 border-t border-adaptive">
                         <div class="relative">
-                            <textarea id="aiInput" class="w-full min-h-[100px] max-h-[200px] border border-gray-200 rounded-lg p-3 pr-10 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Write a scene with Jane..."></textarea>
+                            <textarea id="aiInput" class="w-full min-h-[100px] max-h-[200px] border border-adaptive rounded-lg p-3 pr-10 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Write a scene with Jane..."></textarea>
                             <button id="aiSubmit" class="absolute right-3 top-3 text-primary hover:text-primary/80 disabled:opacity-50">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
@@ -2123,7 +2345,7 @@
             </div>
 
             <!-- Editor Content -->
-            <div class="flex-1 overflow-y-auto p-8 bg-white">
+            <div class="flex-1 overflow-y-auto p-8 bg-card">
                 <div id="editorContent" class="editor-content max-w-3xl mx-auto" contenteditable="true">
                     <h1 id="chapterTitle" class="text-3xl font-bold mb-6">Loading chapter...</h1>
                     <p class="mb-4 placeholder-text">Select a chapter to start writing, or create a new one.</p>
@@ -2141,8 +2363,8 @@
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            <div class="bg-gray-50 p-5 rounded-lg mb-5 border border-gray-100">
-                <p class="text-gray-700 leading-relaxed">The city lights twinkled below as John gazed out from his apartment window. Tomorrow would mark one year since the accident changed everything. He sighed, knowing that returning to New York had been necessary, even if every street corner held a memory he'd rather forget.</p>
+            <div class="bg-surface p-5 rounded-lg mb-5 border border-adaptive">
+                <p class="text-primary-adaptive leading-relaxed">The city lights twinkled below as John gazed out from his apartment window. Tomorrow would mark one year since the accident changed everything. He sighed, knowing that returning to New York had been necessary, even if every street corner held a memory he'd rather forget.</p>
             </div>
             <div class="grid grid-cols-2 gap-4 mb-5">
                         <div>
@@ -2353,7 +2575,7 @@
             </div>
                     <div>
                         <label class="text-sm font-medium block mb-2">Relationships</label>
-                        <div class="bg-gray-50 rounded-lg p-2 h-auto">
+                        <div class="bg-surface rounded-lg p-2 h-auto">
                             <div class="text-xs text-textSecondary mb-2">Connected to:</div>
                             <div id="relationshipList" class="space-y-1 mb-3">
                                 <div class="flex items-center justify-between text-sm">
@@ -3452,7 +3674,7 @@
             // Create a context item for the selection list
             function createContextItem(id, name, type) {
                 const item = document.createElement('div');
-                item.className = 'flex items-center space-x-2 mb-1 p-1 hover:bg-gray-50 rounded';
+                item.className = 'context-item flex items-center space-x-2 mb-1';
                 
                 // Create a unique ID for the checkbox
                 const checkboxId = `context-item-${type}-${id}`;
@@ -4065,7 +4287,7 @@
                 bottom: 0 !important;
                 left: 0 !important;
                 right: 0 !important;
-                background: white !important;
+                background: var(--card-background) !important;
                 z-index: 100 !important;
                 padding: 10px !important;
                 box-shadow: 0 -2px 10px rgba(0,0,0,0.1) !important;
@@ -4088,5 +4310,98 @@
             }
         }
     </style>
+    
+    <!-- Dark Mode Toggle Script -->
+    <script>
+        // Dark mode functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = document.getElementById('themeIcon');
+            
+            // Check for saved theme preference or default to light mode
+            const savedTheme = localStorage.getItem('kalligram-theme');
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            // Set initial theme
+            const initialTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+            setTheme(initialTheme);
+            
+            // Add click event listener to toggle button
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                setTheme(newTheme);
+                
+                // Save preference to localStorage
+                localStorage.setItem('kalligram-theme', newTheme);
+                
+                // Add a subtle animation to the button
+                themeToggle.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    themeToggle.style.transform = 'scale(1)';
+                }, 150);
+            });
+            
+            // Function to set theme
+            function setTheme(theme) {
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    themeIcon.className = 'fas fa-sun';
+                    themeToggle.title = 'Switch to light mode';
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    themeIcon.className = 'fas fa-moon';
+                    themeToggle.title = 'Switch to dark mode';
+                }
+                
+                // Update any existing modals and panels with proper dark mode classes
+                updateModalStyles();
+            }
+            
+            // Function to update modal and panel styles
+            function updateModalStyles() {
+                const isDark = document.documentElement.classList.contains('dark');
+                
+                // Update modals
+                const modals = document.querySelectorAll('.modal .bg-white, .bg-white');
+                modals.forEach(modal => {
+                    if (isDark) {
+                        modal.classList.remove('bg-white');
+                        modal.classList.add('bg-gray-800', 'text-white');
+                    } else {
+                        modal.classList.remove('bg-gray-800', 'text-white');
+                        modal.classList.add('bg-white');
+                    }
+                });
+                
+                // Update dropdown menus
+                const dropdowns = document.querySelectorAll('.shadow-md-custom');
+                dropdowns.forEach(dropdown => {
+                    if (isDark) {
+                        dropdown.style.backgroundColor = 'var(--card-background)';
+                        dropdown.style.color = 'var(--text-primary)';
+                    } else {
+                        dropdown.style.backgroundColor = '';
+                        dropdown.style.color = '';
+                    }
+                });
+            }
+            
+            // Listen for system theme changes
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                if (!localStorage.getItem('kalligram-theme')) {
+                    setTheme(e.matches ? 'dark' : 'light');
+                }
+            });
+            
+            // Add keyboard shortcut for theme toggle (Ctrl/Cmd + Shift + T)
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 't') {
+                    e.preventDefault();
+                    themeToggle.click();
+                }
+            });
+        });
+    </script>
 </body>
 </html> 
