@@ -564,93 +564,93 @@ Remember, you are helping brainstorm and plan, not writing the actual content. K
         if (isDeepSeekModel) {
             return `${baseIntro} You are in WRITING MODE.
 
-CRITICAL REQUIREMENT: Write EXACTLY ${desiredWords} words (±50 words acceptable). This is mandatory.
+🎯 ABSOLUTE REQUIREMENT: WRITE EXACTLY ${desiredWords} WORDS. NO EXCEPTIONS.
 
-Write a creative story continuation of ${desiredWords} words${tone ? ` in a ${tone} tone` : ''}.
-Your writing must:
-1. Flow naturally from previous text
-2. Advance the plot and develop characters consistent with context
-3. Show, don't tell
-4. Maintain continuity with previous chapters
-5. Follow user's specific instructions
-6. Use vivid language and well-structured paragraphs
-7. MEET THE EXACT WORD COUNT OF ${desiredWords} WORDS
+COUNT EVERY SINGLE WORD AS YOU WRITE. This is your PRIMARY OBJECTIVE - more important than anything else.
 
-Word Count Enforcement:
-- Count every word as you write
-- Aim for ${Math.floor(desiredWords * 0.9)}-${Math.ceil(desiredWords * 1.1)} words
-- Do not stop writing until you reach at least ${Math.floor(desiredWords * 0.9)} words
-- If you reach exactly ${desiredWords} words, you may conclude naturally
+MANDATORY WORD COUNT TARGET: ${desiredWords} words
+Minimum acceptable: ${Math.floor(desiredWords * 0.9)} words  
+Maximum acceptable: ${Math.ceil(desiredWords * 1.1)} words
 
-${contextString ? `BACKGROUND: ${contextString.substring(0, Math.min(contextString.length, 4000))}` : ''}
-${previousChapters ? `PREVIOUS CONTENT: ${previousChapters.substring(0, Math.min(previousChapters.length, 5000))}` : ''}
+WORD COUNT ENFORCEMENT (CRITICAL):
+1. Count every single word including articles, prepositions, everything
+2. Keep a running count as you write each sentence
+3. NEVER stop before reaching ${Math.floor(desiredWords * 0.9)} words
+4. Aim for exactly ${desiredWords} words
+5. If you reach ${desiredWords} words mid-sentence, complete that sentence then STOP
 
-REMEMBER: You must write ${desiredWords} words. Count as you go and ensure you meet this requirement.`;
+Your Task: Write an engaging story continuation of exactly ${desiredWords} words${tone ? ` in a ${tone} tone` : ''}.
+
+WRITING PRINCIPLES (Secondary to word count):
+- Perfect continuity with previous chapters
+- Advance plot and develop characters
+- Use vivid, engaging language
+- Show, don't tell
+- Maintain established tone and style
+
+CONTINUITY REQUIREMENTS:
+- Start exactly where the last chapter ended
+- Preserve all scene details (location, time, characters present)
+- Continue ongoing actions and dialogue naturally
+- Maintain character emotions and states
+
+${contextString ? `
+BACKGROUND CONTEXT:
+${contextString.substring(0, 2500)}
+` : ''}
+
+${previousChapters ? `
+PREVIOUS CHAPTERS (Continue from here):
+${previousChapters.substring(0, 3500)}
+` : ''}
+
+🎯 CRITICAL REMINDER: Your success is measured by reaching exactly ${desiredWords} words. Count every word. Do not stop until you reach at least ${Math.floor(desiredWords * 0.9)} words. This is more important than perfect prose - hit the word count target!`;
         }
         
         // Standard generate mode with enhanced writing instructions
         return `${baseIntro} You are in WRITING MODE.
 
-CRITICAL REQUIREMENT: Write EXACTLY ${desiredWords} words (±50 words acceptable). This is mandatory.
+🎯 ABSOLUTE REQUIREMENT: WRITE EXACTLY ${desiredWords} WORDS. NO EXCEPTIONS.
 
-Your Task:
-Write an engaging and creative continuation of the story, approximately ${desiredWords} words long${tone ? `, in a ${tone} tone` : ''}.
-The narrative must flow seamlessly from the previous chapter, maintaining perfect continuity while advancing the plot and developing characters.
+COUNT EVERY SINGLE WORD AS YOU WRITE. This is your PRIMARY OBJECTIVE - more important than anything else.
 
-Word Count Enforcement:
-- Count every word as you write
-- Target range: ${Math.floor(desiredWords * 0.9)}-${Math.ceil(desiredWords * 1.1)} words
-- Do not stop writing until you reach at least ${Math.floor(desiredWords * 0.9)} words
-- If you reach exactly ${desiredWords} words, you may conclude naturally
+MANDATORY WORD COUNT TARGET: ${desiredWords} words
+Minimum acceptable: ${Math.floor(desiredWords * 0.9)} words  
+Maximum acceptable: ${Math.ceil(desiredWords * 1.1)} words
 
-Core Principles for Your Writing:
+WORD COUNT ENFORCEMENT (CRITICAL):
+1. Count every single word including articles, prepositions, everything
+2. Keep a running count as you write each sentence
+3. NEVER stop before reaching ${Math.floor(desiredWords * 0.9)} words
+4. Aim for exactly ${desiredWords} words
+5. If you reach ${desiredWords} words mid-sentence, complete that sentence then STOP
 
-1. **PERFECT CONTINUITY (Top Priority):**
-   * If PREVIOUS CHAPTERS are provided, your writing MUST start EXACTLY where the most recent chapter ends.
-   * Preserve ALL details from the end of the last chapter, including:
-     - Scene: Location, time of day, weather, and atmosphere.
-     - Characters: Their positions, emotions, ongoing actions, and dialogue context.
-     - Plot: Immediate cliffhangers, unresolved questions, or ongoing events.
-   * Example: If the last chapter ends with "Jane stood at the edge of Darkwood Forest, her sword drawn as the enemy approached," your chapter MUST begin with Jane in Darkwood Forest, sword drawn, facing the enemy.
-   * Do NOT introduce new characters, locations, or major plot elements unless explicitly requested in the prompt or logically inferred from the context.
+Your Task: Write an engaging story continuation of exactly ${desiredWords} words${tone ? ` in a ${tone} tone` : ''}.
 
-2. **NARRATIVE PROGRESSION:**
-   * Advance the story in a meaningful way by continuing the immediate plot thread.
-   * Resolve or build upon cliffhangers and ongoing events from the last chapter.
-   * Develop characters through their reactions, decisions, and interactions, consistent with their established traits and backstories.
-   * Use vivid, evocative language to engage the reader, but prioritize continuity over descriptive embellishment.
+WRITING PRINCIPLES (Secondary to word count):
+- Perfect continuity with previous chapters
+- Advance plot and develop characters
+- Use vivid, engaging language
+- Show, don't tell
+- Maintain established tone and style
 
-3. **USING BACKGROUND LORE (Secondary Goal):**
-   * Use the BACKGROUND LORE to ensure consistency and inspire creativity.
-   * Characters, locations, and events from the lore should influence the narrative naturally (e.g., a character's backstory affects their decisions, a location's features shape the scene).
-   * Only explicitly mention lore elements when relevant to the current scene or plot progression.
-
-4. **EXECUTING THE USER'S PROMPT:**
-   * Follow the user's specific instructions (e.g., "end with a cliffhanger") while ensuring they align with the established narrative.
-   * If the prompt conflicts with continuity (e.g., "add a new character" when the scene is isolated), prioritize continuity and weave the instruction in logically.
-
-5. **WRITING QUALITY:**
-   * Produce well-structured prose with clear paragraphs and complete sentences.
-   * Avoid stopping mid-sentence; find a natural ending point if approaching the token limit.
-   * Ensure the narrative feels complete and satisfying within the word limit.
-   * MOST IMPORTANTLY: Write exactly ${desiredWords} words - count as you write and ensure you meet this requirement.
-
-What to AVOID:
-* Contradicting the previous chapter's details (e.g., changing location, time, or character states).
-* Introducing unprompted elements that break immersion (e.g., sudden new characters in an isolated scene).
-* Overusing lore elements at the expense of the immediate plot thread.
-* Stopping before reaching ${Math.floor(desiredWords * 0.9)} words.
+CONTINUITY REQUIREMENTS:
+- Start exactly where the last chapter ended
+- Preserve all scene details (location, time, characters present)
+- Continue ongoing actions and dialogue naturally
+- Maintain character emotions and states
 
 ${contextString ? `
-BACKGROUND LORE (Use for consistency and inspiration):
-${contextString}
-` : ''}
-${previousChapters ? `
-PREVIOUS CHAPTERS (Start EXACTLY where the most recent chapter ends):
-${previousChapters}
+BACKGROUND CONTEXT:
+${contextString.substring(0, 2500)}
 ` : ''}
 
-MANDATORY: You must write ${desiredWords} words. Count every word and ensure you meet this exact requirement. Do not stop until you have written at least ${Math.floor(desiredWords * 0.9)} words.`;
+${previousChapters ? `
+PREVIOUS CHAPTERS (Continue from here):
+${previousChapters.substring(0, 3500)}
+` : ''}
+
+🎯 CRITICAL REMINDER: Your success is measured by reaching exactly ${desiredWords} words. Count every word. Do not stop until you reach at least ${Math.floor(desiredWords * 0.9)} words. This is more important than perfect prose - hit the word count target!`;
     }
 };
 
