@@ -2001,149 +2001,9 @@
             // Call the setup function
             setupProjectTitleRename();
             
-            // PDF Export Button
+            // PDF Export Button - Show preview first
             if (elements.exportPdfBtn) {
-                elements.exportPdfBtn.addEventListener('click', async () => {
-            try {
-                        if (!appState.currentProject) {
-                            showToast('No project selected', 'error');
-                    return;
-                }
-                
-                        showLoading('Generating PDF...');
-                        
-                        // Get all chapters for the current project
-                        const { data: projectChapters, error } = await chapters.getByProject(appState.currentProject.id);
-                        
-                        if (error) throw error;
-                        
-                        if (!projectChapters || projectChapters.length === 0) {
-                            showToast('No chapters to export', 'error');
-                            hideLoading();
-                            return;
-                        }
-                        
-                        // Sort chapters by order_index
-                        projectChapters.sort((a, b) => a.order_index - b.order_index);
-                        
-                        // Create new jsPDF instance
-                        const { jsPDF } = window.jspdf;
-                        const doc = new jsPDF();
-                
-                        // Set up document properties
-                        const pageWidth = doc.internal.pageSize.getWidth();
-                        const pageHeight = doc.internal.pageSize.getHeight();
-                        const margin = 20;
-                        const lineHeight = 7;
-                        const maxLineWidth = pageWidth - (margin * 2);
-                        
-                        let yPosition = margin;
-                        
-                        // Add title page
-                        doc.setFontSize(24);
-                        doc.setFont(undefined, 'bold');
-                        const titleLines = doc.splitTextToSize(appState.currentProject.title, maxLineWidth);
-                        titleLines.forEach(line => {
-                            if (yPosition > pageHeight - margin) {
-                                doc.addPage();
-                                yPosition = margin;
-                            }
-                            doc.text(line, margin, yPosition);
-                            yPosition += lineHeight * 2;
-                        });
-                        
-                        // Add description if available
-                        if (appState.currentProject.description) {
-                            yPosition += lineHeight;
-                            doc.setFontSize(12);
-                            doc.setFont(undefined, 'normal');
-                            const descLines = doc.splitTextToSize(appState.currentProject.description, maxLineWidth);
-                            descLines.forEach(line => {
-                                if (yPosition > pageHeight - margin) {
-                                    doc.addPage();
-                                    yPosition = margin;
-                                }
-                                doc.text(line, margin, yPosition);
-                                yPosition += lineHeight;
-                            });
-                        }
-                        
-                        // Add new page for chapters
-                        doc.addPage();
-                        yPosition = margin;
-                        
-                        // Process each chapter
-                        for (const chapter of projectChapters) {
-                            // Add chapter title
-                            doc.setFontSize(16);
-                            doc.setFont(undefined, 'bold');
-                            
-                            // Check if we need a new page for the chapter title
-                            if (yPosition > pageHeight - margin - 20) {
-                                doc.addPage();
-                                yPosition = margin;
-                            }
-                            
-                            const chapterTitleLines = doc.splitTextToSize(chapter.title, maxLineWidth);
-                            chapterTitleLines.forEach(line => {
-                                doc.text(line, margin, yPosition);
-                                yPosition += lineHeight * 1.5;
-                            });
-                            
-                            yPosition += lineHeight;
-                            
-                            // Add chapter content
-                            if (chapter.content) {
-                                doc.setFontSize(11);
-                                doc.setFont(undefined, 'normal');
-                
-                                // Remove HTML tags and clean up the content
-                                const tempDiv = document.createElement('div');
-                                tempDiv.innerHTML = chapter.content;
-                                const cleanContent = tempDiv.textContent || tempDiv.innerText || '';
-                                
-                                // Split content into paragraphs
-                                const paragraphs = cleanContent.split('\n').filter(p => p.trim().length > 0);
-                                
-                                paragraphs.forEach(paragraph => {
-                                    const lines = doc.splitTextToSize(paragraph.trim(), maxLineWidth);
-                                    
-                                    lines.forEach(line => {
-                                        // Check if we need a new page
-                                        if (yPosition > pageHeight - margin) {
-                                            doc.addPage();
-                                            yPosition = margin;
-                                        }
-                                        
-                                        doc.text(line, margin, yPosition);
-                                        yPosition += lineHeight;
-                                    });
-                                    
-                                    // Add space between paragraphs
-                                    yPosition += lineHeight * 0.5;
-                                });
-                            }
-                            
-                            // Add space between chapters
-                            yPosition += lineHeight * 2;
-                        }
-                        
-                        // Generate filename
-                        const sanitizedTitle = appState.currentProject.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                        const filename = `${sanitizedTitle}_${new Date().toISOString().split('T')[0]}.pdf`;
-                        
-                        // Save the PDF
-                        doc.save(filename);
-                        
-                        hideLoading();
-                        showToast('PDF exported successfully', 'success');
-                
-            } catch (error) {
-                        console.error('Error exporting PDF:', error);
-                hideLoading();
-                        showToast('Failed to export PDF: ' + (error.message || 'Unknown error'), 'error');
-            }
-        });
+                elements.exportPdfBtn.addEventListener('click', showPdfPreview);
             }
         }
         
@@ -4852,8 +4712,8 @@
     </script>
 
     <!-- PDF Preview Modal -->
-    <div class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center modal" id="pdfPreviewModal">
-        <div class="bg-white-adaptive rounded-xl p-6 max-w-4xl w-full mx-4 shadow-md-custom fade-in overflow-y-auto max-h-[90vh] modal-content">
+    <div class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center modal z-50" id="pdfPreviewModal">
+        <div class="bg-white-adaptive rounded-xl p-6 max-w-4xl w-full mx-4 shadow-md-custom fade-in overflow-y-auto max-h-[90vh] modal-content relative z-60">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-bold text-primary">PDF Preview</h2>
                 <button class="text-gray-400 hover:text-gray-600" id="closePdfPreviewModal">
@@ -4959,10 +4819,9 @@
                 // Generate preview content
                 generatePreviewContent(projectChapters);
                 
-                // Show the preview modal
+                // Show the preview modal (modal already has its own background overlay)
                 document.getElementById('pdfPreviewModal').classList.remove('hidden');
                 document.getElementById('pdfPreviewModal').classList.add('flex');
-                document.getElementById('pdfExportOverlay').classList.remove('hidden');
                 
             } catch (error) {
                 console.error('Error generating PDF preview:', error);
