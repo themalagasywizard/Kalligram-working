@@ -419,9 +419,10 @@ const getOpenRouterModelName = (modelName) => {
 
 // Helper function to convert words to tokens (approximate)
 const wordsToTokens = (wordCount) => {
-    // Average ratio of tokens to words is roughly 1.3
-    // Add 20% buffer to ensure we don't cut off mid-sentence
-    return Math.ceil(wordCount * 1.3 * 1.2);
+    // Increase token allowance - AI models often need more tokens than estimated
+    // Average ratio of tokens to words is roughly 1.3-1.5 for complex content
+    // Add 50% buffer to ensure we don't cut off longer content
+    return Math.ceil(wordCount * 1.5 * 1.5);
 };
 
 // Helper function to ensure text ends with a complete sentence
@@ -455,26 +456,25 @@ const timeoutPromise = (ms, message) => new Promise((_, reject) =>
 
 // Helper function to calculate dynamic timeout based on tokens and mode
 const calculateTimeout = (maxTokens, mode, isDeepSeekModel) => {
-    // Significantly increased timeouts for longer content
-    const BASE_TIMEOUT = mode === 'chat' ? 45000 : 120000;   // 2 minutes for generate mode
-    const MAX_TIMEOUT = 240000;   // 4 minutes maximum for very long requests
-    const MIN_TIMEOUT = mode === 'chat' ? 30000 : 60000;    // Increased minimum timeout
-    const MS_PER_TOKEN = mode === 'chat' ? 40 : 100;     // Much more generous per-token scaling
+    // Netlify functions have a 10-second timeout on free tier, 25 seconds on paid
+    // We need to work within these constraints
+    const BASE_TIMEOUT = mode === 'chat' ? 8000 : 20000;   // 20 seconds max for generate mode
+    const MAX_TIMEOUT = 25000;   // 25 seconds maximum (Netlify paid tier limit)
+    const MIN_TIMEOUT = mode === 'chat' ? 5000 : 8000;    // Minimum timeout
+    const MS_PER_TOKEN = mode === 'chat' ? 10 : 15;       // Reduced per-token time
 
-    // Give DeepSeek more time as it tends to require longer processing
+    // For very long requests, we'll have to accept shorter timeouts
+    // and rely on the retry mechanism
+    const estimatedWords = maxTokens / 1.5; // Rough conversion back to words
+    if (estimatedWords > 1000) {
+        return MAX_TIMEOUT; // 25 seconds for 1000+ word requests
+    }
+    
     if (isDeepSeekModel) {
-        // Add system message complexity factor - our template is large
-        const systemMessageComplexityFactor = 45000; // Add 45 seconds for the complex system message
-        const scaledTimeout = BASE_TIMEOUT + (maxTokens * MS_PER_TOKEN) + systemMessageComplexityFactor;
+        const scaledTimeout = BASE_TIMEOUT + (maxTokens * MS_PER_TOKEN);
         return Math.min(MAX_TIMEOUT, Math.max(MIN_TIMEOUT, scaledTimeout));
     } else {
-        // Also increase non-DeepSeek timeouts significantly
-        // For very long requests (1000+ words), use maximum timeout
-        const estimatedWords = maxTokens / 1.3; // Rough conversion back to words
-        if (estimatedWords > 1000) {
-            return MAX_TIMEOUT; // 4 minutes for 1000+ word requests
-        }
-        return mode === 'chat' ? 60000 : 180000; // 3 minutes for generate mode
+        return mode === 'chat' ? 8000 : 20000; // Fixed timeouts within Netlify limits
     }
 };
 
@@ -534,123 +534,26 @@ const fetchWithTimeout = async (url, options, timeout) => {
 
 // Create system message based on desired length, tone, and context data
 const createSystemMessage = (mode, userName, desiredWords, tone, contextString, previousChapters, isDeepSeekModel = false) => {
-    // Common intro for both modes
-    let baseIntro = `You are an AI writing assistant helping ${userName} with a creative writing project.`;
-    
-    // Different system messages based on mode
+    // Simplified system messages for better performance
     if (mode === 'chat') {
-        return `${baseIntro} You are in BRAINSTORMING MODE.
+        return `You are an AI writing assistant helping ${userName} brainstorm and plan their creative writing project.
 
-As a brainstorming and world-building assistant, your role is to help the user explore ideas, develop characters, 
-plan plot points, and refine their creative vision WITHOUT generating full narrative text.
+Focus on DISCUSSION and IDEAS rather than writing full content. Ask questions, suggest plot points, and help develop characters and settings.
 
-GUIDELINES:
-1. Focus on DISCUSSING rather than CREATING final content.
-2. Ask thoughtful questions to help the user develop their ideas further.
-3. Provide concise, helpful suggestions rather than extended prose.
-4. Help organize thoughts and explore possibilities.
-5. When analyzing characters, settings, or plot points, refer specifically to elements in the project context.
-6. Respond conversationally with shorter, more direct answers.
-7. Your suggestions should prompt the user's own creativity rather than replacing it.
+${contextString ? `Context: ${contextString.substring(0, 1500)}` : ''}
+${previousChapters ? `Previous: ${previousChapters.substring(0, 1000)}` : ''}
 
-${contextString ? `PROJECT CONTEXT (Reference these elements in your responses):
-${contextString}
-` : ''}
-${previousChapters ? `${previousChapters}` : ''}
-
-Remember, you are helping brainstorm and plan, not writing the actual content. Keep responses under ${Math.min(desiredWords, 300)} words${tone ? ` in a ${tone} tone` : ''}.`;
+Keep responses under ${Math.min(desiredWords, 300)} words${tone ? ` in a ${tone} tone` : ''}.`;
     } else {
-        // For DeepSeek models, use a more concise system message to prevent timeouts
-        if (isDeepSeekModel) {
-            return `${baseIntro} You are in WRITING MODE.
+        // Greatly simplified system message for generate mode
+        return `You are an AI writing assistant. Write exactly ${desiredWords} words of engaging story content${tone ? ` in a ${tone} tone` : ''}.
 
-🎯 ABSOLUTE REQUIREMENT: WRITE EXACTLY ${desiredWords} WORDS. NO EXCEPTIONS.
+CRITICAL: Your response must be between ${Math.floor(desiredWords * 0.85)} and ${Math.ceil(desiredWords * 1.15)} words. Count carefully.
 
-COUNT EVERY SINGLE WORD AS YOU WRITE. This is your PRIMARY OBJECTIVE - more important than anything else.
+${contextString ? `Context: ${contextString.substring(0, 1000)}` : ''}
+${previousChapters ? `Continue from: ${previousChapters.substring(0, 1500)}` : ''}
 
-MANDATORY WORD COUNT TARGET: ${desiredWords} words
-Minimum acceptable: ${Math.floor(desiredWords * 0.9)} words  
-Maximum acceptable: ${Math.ceil(desiredWords * 1.1)} words
-
-WORD COUNT ENFORCEMENT (CRITICAL):
-1. Count every single word including articles, prepositions, everything
-2. Keep a running count as you write each sentence
-3. NEVER stop before reaching ${Math.floor(desiredWords * 0.9)} words
-4. Aim for exactly ${desiredWords} words
-5. If you reach ${desiredWords} words mid-sentence, complete that sentence then STOP
-
-Your Task: Write an engaging story continuation of exactly ${desiredWords} words${tone ? ` in a ${tone} tone` : ''}.
-
-WRITING PRINCIPLES (Secondary to word count):
-- Perfect continuity with previous chapters
-- Advance plot and develop characters
-- Use vivid, engaging language
-- Show, don't tell
-- Maintain established tone and style
-
-CONTINUITY REQUIREMENTS:
-- Start exactly where the last chapter ended
-- Preserve all scene details (location, time, characters present)
-- Continue ongoing actions and dialogue naturally
-- Maintain character emotions and states
-
-${contextString ? `
-BACKGROUND CONTEXT:
-${contextString.substring(0, 2500)}
-` : ''}
-
-${previousChapters ? `
-PREVIOUS CHAPTERS (Continue from here):
-${previousChapters.substring(0, 3500)}
-` : ''}
-
-🎯 CRITICAL REMINDER: Your success is measured by reaching exactly ${desiredWords} words. Count every word. Do not stop until you reach at least ${Math.floor(desiredWords * 0.9)} words. This is more important than perfect prose - hit the word count target!`;
-        }
-        
-        // Standard generate mode with enhanced writing instructions
-        return `${baseIntro} You are in WRITING MODE.
-
-🎯 ABSOLUTE REQUIREMENT: WRITE EXACTLY ${desiredWords} WORDS. NO EXCEPTIONS.
-
-COUNT EVERY SINGLE WORD AS YOU WRITE. This is your PRIMARY OBJECTIVE - more important than anything else.
-
-MANDATORY WORD COUNT TARGET: ${desiredWords} words
-Minimum acceptable: ${Math.floor(desiredWords * 0.9)} words  
-Maximum acceptable: ${Math.ceil(desiredWords * 1.1)} words
-
-WORD COUNT ENFORCEMENT (CRITICAL):
-1. Count every single word including articles, prepositions, everything
-2. Keep a running count as you write each sentence
-3. NEVER stop before reaching ${Math.floor(desiredWords * 0.9)} words
-4. Aim for exactly ${desiredWords} words
-5. If you reach ${desiredWords} words mid-sentence, complete that sentence then STOP
-
-Your Task: Write an engaging story continuation of exactly ${desiredWords} words${tone ? ` in a ${tone} tone` : ''}.
-
-WRITING PRINCIPLES (Secondary to word count):
-- Perfect continuity with previous chapters
-- Advance plot and develop characters
-- Use vivid, engaging language
-- Show, don't tell
-- Maintain established tone and style
-
-CONTINUITY REQUIREMENTS:
-- Start exactly where the last chapter ended
-- Preserve all scene details (location, time, characters present)
-- Continue ongoing actions and dialogue naturally
-- Maintain character emotions and states
-
-${contextString ? `
-BACKGROUND CONTEXT:
-${contextString.substring(0, 2500)}
-` : ''}
-
-${previousChapters ? `
-PREVIOUS CHAPTERS (Continue from here):
-${previousChapters.substring(0, 3500)}
-` : ''}
-
-🎯 CRITICAL REMINDER: Your success is measured by reaching exactly ${desiredWords} words. Count every word. Do not stop until you reach at least ${Math.floor(desiredWords * 0.9)} words. This is more important than perfect prose - hit the word count target!`;
+Write compelling narrative that advances the story. Use dialogue, action, and description.`;
     }
 };
 
@@ -818,7 +721,7 @@ exports.handler = async (event) => {
         const isQwen3Model = modelName.includes('qwen3');
 
         // Convert desired word length to tokens and ensure minimum/maximum bounds based on mode
-        const maxDesiredWords = mode === 'chat' ? 500 : 2000; // Increased to 2000 words for generate mode
+        const maxDesiredWords = mode === 'chat' ? 500 : 3000; // Increased to 3000 words for generate mode
         const minDesiredWords = mode === 'chat' ? 50 : 100;   // Different minimums for each mode
         
         const desiredWords = Math.min(Math.max(parseInt(length) || (mode === 'chat' ? 200 : 500), minDesiredWords), maxDesiredWords);
@@ -843,7 +746,7 @@ exports.handler = async (event) => {
         const presencePenalty = mode === 'chat' ? 0.8 : 0.5; // Higher presence penalty for chat to reduce repetition
         const frequencyPenalty = mode === 'chat' ? 0.7 : 0.5; // Higher frequency penalty for chat to reduce repetition
 
-        // Create request body
+        // Create request body with optimized settings for longer content
         const requestBody = isDeepSeekModel ? {
             model: modelName,
             messages: [
@@ -856,13 +759,13 @@ exports.handler = async (event) => {
                     content: prompt
                 }
             ],
-            temperature: temperature,
-            top_p: 0.95,
+            temperature: Math.min(temperature, 0.7), // Lower temperature for more focused output
+            top_p: 0.9, // Slightly lower for better coherence
             max_tokens: maxTokens,
-            stream: stream,
+            stream: false, // Disable streaming for better reliability
             presence_penalty: presencePenalty,
             frequency_penalty: frequencyPenalty,
-            stop: ["###"]  // Add a stop sequence to prevent mid-sentence cutoff
+            stop: null  // Remove stop sequences that might truncate content
         } : {
             model: getOpenRouterModelName(modelName),
             messages: [
@@ -875,10 +778,10 @@ exports.handler = async (event) => {
                     content: prompt
                 }
             ],
-            temperature: temperature,
-            top_p: 0.95,
+            temperature: Math.min(temperature, 0.7), // Lower temperature for more focused output
+            top_p: 0.9, // Slightly lower for better coherence
             max_tokens: maxTokens,
-            stop: ["###"]
+            stop: null  // Remove stop sequences that might truncate content
         };
 
         // Make API request
