@@ -393,16 +393,32 @@ const fetchPreviousChapters = async (projectId, userId, prompt = '') => {
 
 // Helper function to validate API keys
 const validateApiKeys = (modelName) => {
+    console.log('Validating API keys for model:', modelName);
+    console.log('Available environment variables:', Object.keys(process.env).filter(key => key.includes('API')));
+    
     const isDeepSeekModel = modelName.includes('deepseek');
     const isQwen3Model = modelName.includes('qwen3');
     
-    if (isDeepSeekModel && (!process.env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY === '')) {
-        throw new Error('DEEPSEEK_API_KEY is not configured. Please set this environment variable.');
+    // Check if we have any required API keys
+    const hasDeepSeekKey = process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY !== '';
+    const hasOpenRouterKey = process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY !== '';
+    
+    console.log('API Key status:', { hasDeepSeekKey, hasOpenRouterKey, isDeepSeekModel, isQwen3Model });
+    
+    if (isDeepSeekModel && !hasDeepSeekKey) {
+        throw new Error('DEEPSEEK_API_KEY is not configured. Please set this environment variable in Netlify.');
     }
     
-    if (isQwen3Model && (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY === '')) {
-        throw new Error('OPENROUTER_API_KEY is not configured. Please set this environment variable.');
+    if (isQwen3Model && !hasOpenRouterKey) {
+        throw new Error('OPENROUTER_API_KEY is not configured. Please set this environment variable in Netlify.');
     }
+    
+    // For other models, we need at least one API key
+    if (!isDeepSeekModel && !isQwen3Model && !hasDeepSeekKey && !hasOpenRouterKey) {
+        throw new Error('No API keys configured. Please set either DEEPSEEK_API_KEY or OPENROUTER_API_KEY in Netlify environment variables.');
+    }
+    
+    console.log('API key validation successful');
 };
 
 // Helper function to get the OpenRouter model name
@@ -646,29 +662,38 @@ exports.handler = async (event) => {
             };
         }
         
-        // Validate user_id and project_id
+        // Log request details for debugging
+        console.log('Request validation - user_id:', user_id, 'project_id:', project_id);
+        console.log('Full request body:', { prompt, context, mode, tone, length, user_id, project_id });
+        
+        // Validate user_id and project_id (but allow empty values temporarily for debugging)
         if (!user_id || !project_id) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({
-                    error: 'user_id and project_id are required',
-                    success: false
-                })
-            };
+            console.warn('Missing user_id or project_id, proceeding with defaults for debugging');
+            // Use fallback values to prevent total failure during debugging
+            const fallbackUserId = user_id || 'debug-user';
+            const fallbackProjectId = project_id || 'debug-project';
+            
+            // Log this and continue instead of failing
+            console.log(`Using fallback values: user_id=${fallbackUserId}, project_id=${fallbackProjectId}`);
+            
+            // For now, let's continue with fallback values instead of failing
+            // TODO: Re-enable strict validation once user auth is confirmed working
         }
 
         const modelName = event.queryStringParameters?.model || config.DEFAULT_MODEL;
         
         // Validate API keys before making request
+        console.log('Validating API keys for model:', modelName);
         try {
             validateApiKeys(modelName);
+            console.log('API key validation passed');
         } catch (error) {
+            console.error('API key validation failed:', error.message);
             return {
                 statusCode: 401,
                 headers,
                 body: JSON.stringify({
-                    error: error.message,
+                    error: `API configuration error: ${error.message}`,
                     success: false
                 })
             };
@@ -704,11 +729,20 @@ exports.handler = async (event) => {
                     console.log('Auth user not found, using default name');
                 }
                 
-                // Fetch project context
-                contextString = await fetchProjectContext(project_id, user_id, context);
+                // Use fallback values if original values are missing
+                const effectiveUserId = user_id || 'debug-user';
+                const effectiveProjectId = project_id || 'debug-project';
                 
-                // Fetch all previous chapters
-                previousChapters = await fetchPreviousChapters(project_id, user_id, prompt);
+                // Fetch project context (skip if using debug values)
+                if (user_id && project_id) {
+                    contextString = await fetchProjectContext(effectiveProjectId, effectiveUserId, context);
+                    // Fetch all previous chapters
+                    previousChapters = await fetchPreviousChapters(effectiveProjectId, effectiveUserId, prompt);
+                } else {
+                    console.log('Skipping context fetching due to missing user/project IDs');
+                    contextString = '';
+                    previousChapters = '';
+                }
                 
                 // Log the context being fed to the AI
                 console.log('========== CONTEXT BEING FED TO AI ==========');

@@ -4017,6 +4017,21 @@
                 processAIRequest();
             });
             
+            // Function to test connectivity to Netlify functions
+            async function testFunctionConnectivity() {
+                try {
+                    console.log('Testing Netlify function connectivity...');
+                    const response = await fetch('/.netlify/functions/generate-text', {
+                        method: 'OPTIONS'
+                    });
+                    console.log('Function connectivity test result:', response.status);
+                    return response.status === 204; // OPTIONS should return 204
+                } catch (error) {
+                    console.error('Function connectivity test failed:', error);
+                    return false;
+                }
+            }
+
             // Function to handle the actual AI request
             async function processAIRequest() {
                 const prompt = aiInput.value.trim();
@@ -4044,6 +4059,12 @@
                 validateInput(aiInput);
                 
                 try {
+                    // Test connectivity first
+                    const isConnected = await testFunctionConnectivity();
+                    if (!isConnected) {
+                        throw new Error('Cannot connect to Netlify functions. Please check if the app is properly deployed and API keys are configured.');
+                    }
+                    
                     // Add a small delay to avoid hitting rate limits
                     await delay(500);
                     
@@ -4071,6 +4092,9 @@
                     console.log(`Client timeout set to: ${clientTimeout}ms for ${requestedWords} words`);
                     const timeoutId = setTimeout(() => controller.abort(), clientTimeout);
                     
+                    console.log('Making request to:', `/.netlify/functions/generate-text?model=${model}`);
+                    console.log('Request body:', { prompt, context: selectedContext, mode: currentMode, tone, length, user_id, project_id });
+                    
                     const response = await fetch(`/.netlify/functions/generate-text?model=${model}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -4088,10 +4112,24 @@
                     
                     clearTimeout(timeoutId); // Clear timeout if request completes
                     
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+                    
                     // Check if response is OK before trying to parse JSON
                     if (!response.ok) {
                         const errorText = await response.text();
-                        throw new Error(`Server error (${response.status}): ${errorText || 'Unknown error'}`);
+                        console.error('Server error details:', response.status, errorText);
+                        
+                        // More specific error handling
+                        if (response.status === 499) {
+                            throw new Error(`Client closed request (499). This usually indicates a network or deployment issue. Error details: ${errorText || 'No additional details'}`);
+                        } else if (response.status === 500) {
+                            throw new Error(`Internal server error (500). The function may have crashed. Error details: ${errorText || 'No additional details'}`);
+                        } else if (response.status === 404) {
+                            throw new Error(`Function not found (404). The Netlify function may not be deployed properly. Error details: ${errorText || 'No additional details'}`);
+                        } else {
+                            throw new Error(`Server error (${response.status}): ${errorText || 'Unknown error'}`);
+                        }
                     }
                     
                     // Check if response has content
@@ -4213,16 +4251,20 @@
                         const currentWordCount = document.getElementById('aiLength').value;
                         helpTips = `
                             <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                <div class="text-sm font-medium text-red-800 mb-2">🔧 Server Response Error</div>
+                                <div class="text-sm font-medium text-red-800 mb-2">🔧 Connection/Deployment Issue</div>
                                 <div class="text-xs text-red-700">
-                                    <div>Server processing time exceeded for ${currentWordCount} word request.</div>
-                                    <div class="mt-2 font-medium">Recommended actions:</div>
+                                    <div>499 errors typically indicate deployment or connectivity problems.</div>
+                                    <div class="mt-2 font-medium">Troubleshooting steps:</div>
                                     <ul class="list-disc list-inside ml-2 mt-1 space-y-1">
-                                        <li>Try again - temporary server load may have caused the issue</li>
-                                        <li>Use the DeepSeek model for better reliability and speed</li>
-                                        <li>Simplify your prompt - avoid overly complex requirements</li>
-                                        <li>If needed, reduce word count below 3000 words</li>
+                                        <li>Check if Netlify functions are deployed correctly</li>
+                                        <li>Verify API keys are set in Netlify environment variables</li>
+                                        <li>Try refreshing the page and testing again</li>
+                                        <li>Check browser console for detailed error logs</li>
+                                        <li>Test with a very simple prompt first</li>
                                     </ul>
+                                    <div class="mt-2 p-2 bg-yellow-50 rounded border text-xs">
+                                        💡 <strong>Technical note:</strong> 499 = "Client Closed Request" - usually a server-side deployment issue.
+                                    </div>
                                 </div>
                             </div>
                         `;
