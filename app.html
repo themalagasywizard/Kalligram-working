@@ -4242,7 +4242,7 @@
                                         <li><strong>Reduce complexity</strong> - avoid very detailed character/plot requirements</li>
                                     </ul>
                                     <div class="mt-2 p-2 bg-white rounded border text-xs">
-                                        💡 <strong>Note:</strong> The system can now handle up to 5000 words, but complex requests may still timeout.
+                                        💡 <strong>Note:</strong> Due to server constraints, requests over 1000 words may timeout. Consider breaking large content into chunks.
                                     </div>
                                 </div>
                             </div>
@@ -4289,14 +4289,14 @@
                 
                 // Check if request is very long and suggest chunking
                 const requestedLength = parseInt(document.getElementById('aiLength').value) || 500;
-                if (requestedLength > 3000) {
+                if (requestedLength > 1500) {
                     const chunkingModal = document.createElement('div');
                     chunkingModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
                     chunkingModal.innerHTML = `
                         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
-                            <h3 class="text-lg font-semibold mb-3">Very Large Request Detected</h3>
+                            <h3 class="text-lg font-semibold mb-3">Large Request Detected</h3>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                Requests over 3000 words may take a long time or timeout. We recommend:
+                                Requests over 1500 words often timeout due to server constraints. We recommend:
                             </p>
                             <ul class="text-sm space-y-2 mb-4">
                                 <li>📝 Generate ${Math.floor(requestedLength / 2)} words first</li>

@@ -476,23 +476,24 @@ const timeoutPromise = (ms, message) => new Promise((_, reject) =>
 
 // Helper function to calculate dynamic timeout based on tokens and mode
 const calculateTimeout = (maxTokens, mode, isDeepSeekModel) => {
-    // Netlify functions now have 120 seconds timeout configured in netlify.toml
-    const BASE_TIMEOUT = mode === 'chat' ? 15000 : 60000;   // 60 seconds base for generate mode
-    const MAX_TIMEOUT = 115000;   // 115 seconds maximum (leave 5s buffer for processing)
-    const MIN_TIMEOUT = mode === 'chat' ? 8000 : 20000;    // Minimum timeout
-    const MS_PER_TOKEN = mode === 'chat' ? 6 : 10;         // More aggressive per-token time
+    // REALITY CHECK: Despite netlify.toml saying 120s, we're getting killed at 30s
+    // So let's work within realistic constraints
+    const BASE_TIMEOUT = mode === 'chat' ? 8000 : 15000;   // 15 seconds base for generate mode
+    const MAX_TIMEOUT = 25000;   // 25 seconds maximum (realistic Netlify limit)
+    const MIN_TIMEOUT = mode === 'chat' ? 5000 : 8000;     // Minimum timeout
+    const MS_PER_TOKEN = mode === 'chat' ? 4 : 6;          // More aggressive per-token time
 
     // Calculate timeout based on estimated words for better scaling
     const estimatedWords = maxTokens / 1.3; // More accurate conversion back to words
     
     // For very long requests, use maximum timeout
-    if (estimatedWords > 1500) {
-        return MAX_TIMEOUT; // 115 seconds for 1500+ word requests
+    if (estimatedWords > 1000) {
+        return MAX_TIMEOUT; // 25 seconds for 1000+ word requests
     }
     
     if (isDeepSeekModel) {
         // DeepSeek is generally faster, so use more aggressive scaling
-        const scaledTimeout = BASE_TIMEOUT + (maxTokens * (MS_PER_TOKEN * 0.7));
+        const scaledTimeout = BASE_TIMEOUT + (maxTokens * (MS_PER_TOKEN * 0.8));
         return Math.min(MAX_TIMEOUT, Math.max(MIN_TIMEOUT, scaledTimeout));
     } else {
         // OpenRouter models - use longer timeouts for reliability
@@ -765,7 +766,8 @@ exports.handler = async (event) => {
         const isQwen3Model = modelName.includes('qwen3');
 
         // Convert desired word length to tokens and ensure minimum/maximum bounds based on mode
-        const maxDesiredWords = mode === 'chat' ? 800 : 5000; // Increased to 5000 words for generate mode
+        // REALITY CHECK: With 25s timeout limit, we need to be more conservative
+        const maxDesiredWords = mode === 'chat' ? 500 : 2000; // Reduced to 2000 words for generate mode
         const minDesiredWords = mode === 'chat' ? 50 : 100;   // Different minimums for each mode
         
         const desiredWords = Math.min(Math.max(parseInt(length) || (mode === 'chat' ? 200 : 500), minDesiredWords), maxDesiredWords);
@@ -774,6 +776,11 @@ exports.handler = async (event) => {
         
         // Log the calculated values for debugging
         console.log(`Request details: words=${desiredWords}, tokens=${maxTokens}, timeout=${timeout}ms, model=${modelName}`);
+        
+        // CRITICAL: Reduce timeout for DeepSeek to work within Netlify limits
+        // Despite our 120s config, there seems to be a 30s hard limit
+        const effectiveTimeout = Math.min(timeout, 25000); // Cap at 25 seconds for reliability
+        console.log(`Effective timeout reduced to: ${effectiveTimeout}ms (from ${timeout}ms) to work within Netlify limits`);
         
         // Move the debugInfo creation here, after all variables are defined
         const debugInfo = {
@@ -794,7 +801,15 @@ exports.handler = async (event) => {
         const frequencyPenalty = mode === 'chat' ? 0.7 : 0.5; // Higher frequency penalty for chat to reduce repetition
 
         // For very long requests, cap max_tokens to prevent API timeouts
-        const effectiveMaxTokens = desiredWords > 3000 ? Math.min(maxTokens, 4000) : maxTokens;
+        // With 25s timeout limit, we need to be more aggressive about token limits
+        let effectiveMaxTokens = maxTokens;
+        if (desiredWords > 2000) {
+            effectiveMaxTokens = Math.min(maxTokens, 3000); // Stricter limit for 2000+ words
+        } else if (desiredWords > 1000) {
+            effectiveMaxTokens = Math.min(maxTokens, 2500); // Medium limit for 1000+ words
+        }
+        
+        console.log(`Token adjustment: requested=${maxTokens}, effective=${effectiveMaxTokens} for ${desiredWords} words`);
         
         // Create request body with optimized settings for longer content
         const requestBody = isDeepSeekModel ? {
@@ -857,6 +872,7 @@ exports.handler = async (event) => {
         let finalRequestBody = requestBody;
         
         try {
+            console.log(`Making API request to ${apiUrl.split('?')[0]} with ${effectiveTimeout}ms timeout`);
             response = await fetchWithTimeout(
                 apiUrl,
                 {
@@ -864,7 +880,7 @@ exports.handler = async (event) => {
                     headers: headers,
                     body: JSON.stringify(finalRequestBody)
                 },
-                timeout
+                effectiveTimeout  // Use the reduced timeout
             );
         } catch (error) {
             // If the request fails and it's a long request, try with reduced tokens
@@ -880,7 +896,9 @@ exports.handler = async (event) => {
                     max_tokens: reducedTokens
                 };
                 
-                // Try again with reduced tokens and longer timeout
+                // Try again with reduced tokens and still capped timeout
+                const retryTimeout = Math.min(effectiveTimeout + 5000, 25000); // Add 5s but cap at 25s
+                console.log(`Retrying with reduced tokens and ${retryTimeout}ms timeout`);
                 response = await fetchWithTimeout(
                     apiUrl,
                     {
@@ -888,7 +906,7 @@ exports.handler = async (event) => {
                         headers: headers,
                         body: JSON.stringify(finalRequestBody)
                     },
-                    Math.min(timeout + 30000, 115000) // Add 30 seconds but cap at 115s
+                    retryTimeout // Use capped retry timeout
                 );
             } else {
                 throw error; // Re-throw if not a long request or different error
