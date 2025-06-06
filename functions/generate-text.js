@@ -419,10 +419,14 @@ const getOpenRouterModelName = (modelName) => {
 
 // Helper function to convert words to tokens (approximate)
 const wordsToTokens = (wordCount) => {
-    // Increase token allowance - AI models often need more tokens than estimated
-    // Average ratio of tokens to words is roughly 1.3-1.5 for complex content
-    // Add 50% buffer to ensure we don't cut off longer content
-    return Math.ceil(wordCount * 1.5 * 1.5);
+    // Optimized token calculation - 1 word ≈ 1.3 tokens on average
+    // Use a more accurate conversion with reasonable buffer
+    const tokensEstimate = Math.ceil(wordCount * 1.3);
+    
+    // Add buffer for system message and context (200-400 tokens typically)
+    const bufferTokens = Math.min(400, Math.ceil(wordCount * 0.1));
+    
+    return tokensEstimate + bufferTokens;
 };
 
 // Helper function to ensure text ends with a complete sentence
@@ -456,25 +460,27 @@ const timeoutPromise = (ms, message) => new Promise((_, reject) =>
 
 // Helper function to calculate dynamic timeout based on tokens and mode
 const calculateTimeout = (maxTokens, mode, isDeepSeekModel) => {
-    // Netlify functions have a 10-second timeout on free tier, 25 seconds on paid
-    // We need to work within these constraints
-    const BASE_TIMEOUT = mode === 'chat' ? 8000 : 20000;   // 20 seconds max for generate mode
-    const MAX_TIMEOUT = 25000;   // 25 seconds maximum (Netlify paid tier limit)
-    const MIN_TIMEOUT = mode === 'chat' ? 5000 : 8000;    // Minimum timeout
-    const MS_PER_TOKEN = mode === 'chat' ? 10 : 15;       // Reduced per-token time
+    // Netlify functions now have 120 seconds timeout configured in netlify.toml
+    const BASE_TIMEOUT = mode === 'chat' ? 15000 : 45000;   // 45 seconds base for generate mode
+    const MAX_TIMEOUT = 110000;   // 110 seconds maximum (leave 10s buffer for processing)
+    const MIN_TIMEOUT = mode === 'chat' ? 8000 : 15000;    // Minimum timeout
+    const MS_PER_TOKEN = mode === 'chat' ? 8 : 12;         // Optimized per-token time
 
-    // For very long requests, we'll have to accept shorter timeouts
-    // and rely on the retry mechanism
-    const estimatedWords = maxTokens / 1.5; // Rough conversion back to words
-    if (estimatedWords > 1000) {
-        return MAX_TIMEOUT; // 25 seconds for 1000+ word requests
+    // Calculate timeout based on estimated words for better scaling
+    const estimatedWords = maxTokens / 1.3; // More accurate conversion back to words
+    
+    if (estimatedWords > 2000) {
+        return MAX_TIMEOUT; // 110 seconds for 2000+ word requests
     }
     
     if (isDeepSeekModel) {
-        const scaledTimeout = BASE_TIMEOUT + (maxTokens * MS_PER_TOKEN);
+        // DeepSeek is generally faster, so use more aggressive scaling
+        const scaledTimeout = BASE_TIMEOUT + (maxTokens * (MS_PER_TOKEN * 0.8));
         return Math.min(MAX_TIMEOUT, Math.max(MIN_TIMEOUT, scaledTimeout));
     } else {
-        return mode === 'chat' ? 8000 : 20000; // Fixed timeouts within Netlify limits
+        // OpenRouter models vary in speed, so use more conservative scaling
+        const scaledTimeout = BASE_TIMEOUT + (maxTokens * MS_PER_TOKEN);
+        return Math.min(MAX_TIMEOUT, Math.max(MIN_TIMEOUT, scaledTimeout));
     }
 };
 
@@ -545,15 +551,18 @@ ${previousChapters ? `Previous: ${previousChapters.substring(0, 1000)}` : ''}
 
 Keep responses under ${Math.min(desiredWords, 300)} words${tone ? ` in a ${tone} tone` : ''}.`;
     } else {
-        // Greatly simplified system message for generate mode
+        // Optimized system message for generate mode
+        const contextLength = desiredWords > 2000 ? 1500 : 1000; // More context for longer requests
+        const previousLength = desiredWords > 2000 ? 2000 : 1500; // More previous content for longer requests
+        
         return `You are an AI writing assistant. Write exactly ${desiredWords} words of engaging story content${tone ? ` in a ${tone} tone` : ''}.
 
-CRITICAL: Your response must be between ${Math.floor(desiredWords * 0.85)} and ${Math.ceil(desiredWords * 1.15)} words. Count carefully.
+TARGET: ${desiredWords} words (range: ${Math.floor(desiredWords * 0.9)}-${Math.ceil(desiredWords * 1.1)} words).
 
-${contextString ? `Context: ${contextString.substring(0, 1000)}` : ''}
-${previousChapters ? `Continue from: ${previousChapters.substring(0, 1500)}` : ''}
+${contextString ? `Context: ${contextString.substring(0, contextLength)}` : ''}
+${previousChapters ? `Continue from: ${previousChapters.substring(0, previousLength)}` : ''}
 
-Write compelling narrative that advances the story. Use dialogue, action, and description.`;
+Write compelling narrative with dialogue, action, and description. Maintain consistent pacing throughout.`;
     }
 };
 
@@ -721,7 +730,7 @@ exports.handler = async (event) => {
         const isQwen3Model = modelName.includes('qwen3');
 
         // Convert desired word length to tokens and ensure minimum/maximum bounds based on mode
-        const maxDesiredWords = mode === 'chat' ? 500 : 3000; // Increased to 3000 words for generate mode
+        const maxDesiredWords = mode === 'chat' ? 800 : 5000; // Increased to 5000 words for generate mode
         const minDesiredWords = mode === 'chat' ? 50 : 100;   // Different minimums for each mode
         
         const desiredWords = Math.min(Math.max(parseInt(length) || (mode === 'chat' ? 200 : 500), minDesiredWords), maxDesiredWords);

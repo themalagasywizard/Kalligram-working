@@ -4059,9 +4059,14 @@
                     const selectedContext = getActiveContext();
                     console.log('Selected context for AI:', selectedContext);
                     
-                    // Create AbortController for timeout handling
+                    // Create AbortController for timeout handling with dynamic timeout
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout (within Netlify limits)
+                    const requestedWords = parseInt(length) || 500;
+                    // Calculate client timeout based on word count (slightly longer than server timeout)
+                    let clientTimeout = 45000; // Default 45 seconds
+                    if (requestedWords > 1000) clientTimeout = 90000; // 90 seconds for 1000+ words
+                    if (requestedWords > 2000) clientTimeout = 120000; // 120 seconds for 2000+ words
+                    const timeoutId = setTimeout(() => controller.abort(), clientTimeout);
                     
                     const response = await fetch(`/.netlify/functions/generate-text?model=${model}`, {
                         method: 'POST',
@@ -4180,21 +4185,23 @@
                     // Handle AbortController timeout
                     if (error.name === 'AbortError') {
                         const currentWordCount = document.getElementById('aiLength').value;
-                        errorMessage = 'Request timed out after 30 seconds';
+                        const timeoutUsed = currentWordCount > 2000 ? '2 minutes' : 
+                                          currentWordCount > 1000 ? '90 seconds' : '45 seconds';
+                        errorMessage = `Request timed out after ${timeoutUsed}`;
                         helpTips = `
                             <div class="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                                <div class="text-sm font-medium text-orange-800 mb-2">⏱️ 30-second timeout reached</div>
+                                <div class="text-sm font-medium text-orange-800 mb-2">⏱️ Timeout reached</div>
                                 <div class="text-xs text-orange-700 space-y-2">
-                                    <div>Your ${currentWordCount} word request took too long to process.</div>
-                                    <div class="font-medium">Immediate solutions:</div>
+                                    <div>Your ${currentWordCount} word request took longer than expected to process.</div>
+                                    <div class="font-medium">Possible solutions:</div>
                                     <ul class="list-disc list-inside ml-2 space-y-1">
-                                        <li><strong>Reduce word count</strong> to 800 or below for faster processing</li>
-                                        <li><strong>Try DeepSeek model</strong> - often more efficient</li>
+                                        <li><strong>Try again</strong> - sometimes the AI service is temporarily slow</li>
+                                        <li><strong>Use DeepSeek model</strong> - typically faster and more reliable</li>
                                         <li><strong>Simplify prompt</strong> - shorter, clearer instructions work better</li>
-                                        <li><strong>Break into chunks</strong> - Generate multiple smaller sections</li>
+                                        <li><strong>Reduce complexity</strong> - avoid very detailed character/plot requirements</li>
                                     </ul>
                                     <div class="mt-2 p-2 bg-white rounded border text-xs">
-                                        💡 <strong>Pro tip:</strong> For long content, generate 500-700 words first, then continue with "extend this story" prompts.
+                                        💡 <strong>Note:</strong> The system can now handle up to 5000 words, but complex requests may still timeout.
                                     </div>
                                 </div>
                             </div>
@@ -4205,13 +4212,13 @@
                             <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                                 <div class="text-sm font-medium text-red-800 mb-2">🔧 Server Response Error</div>
                                 <div class="text-xs text-red-700">
-                                    <div>Server constraints limit processing time for ${currentWordCount} word requests.</div>
-                                    <div class="mt-2 font-medium">Try these solutions:</div>
+                                    <div>Server processing time exceeded for ${currentWordCount} word request.</div>
+                                    <div class="mt-2 font-medium">Recommended actions:</div>
                                     <ul class="list-disc list-inside ml-2 mt-1 space-y-1">
-                                        <li>Reduce word count to 1000 or below</li>
-                                        <li>Use simpler, more direct prompts</li>
-                                        <li>Try the DeepSeek model for better efficiency</li>
-                                        <li>Generate content in smaller sections</li>
+                                        <li>Try again - temporary server load may have caused the issue</li>
+                                        <li>Use the DeepSeek model for better reliability and speed</li>
+                                        <li>Simplify your prompt - avoid overly complex requirements</li>
+                                        <li>If needed, reduce word count below 3000 words</li>
                                     </ul>
                                 </div>
                             </div>
@@ -4237,19 +4244,19 @@
                 
                 // Check if request is very long and suggest chunking
                 const requestedLength = parseInt(document.getElementById('aiLength').value) || 500;
-                if (requestedLength > 1500) {
+                if (requestedLength > 3000) {
                     const chunkingModal = document.createElement('div');
                     chunkingModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
                     chunkingModal.innerHTML = `
                         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
-                            <h3 class="text-lg font-semibold mb-3">Large Request Detected</h3>
+                            <h3 class="text-lg font-semibold mb-3">Very Large Request Detected</h3>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                Requests over 1500 words often timeout. We recommend:
+                                Requests over 3000 words may take a long time or timeout. We recommend:
                             </p>
                             <ul class="text-sm space-y-2 mb-4">
                                 <li>📝 Generate ${Math.floor(requestedLength / 2)} words first</li>
                                 <li>🔄 Then continue with "extend this story"</li>
-                                <li>⚡ Much more reliable and faster</li>
+                                <li>⚡ More reliable for very long content</li>
                             </ul>
                             <div class="flex space-x-3">
                                 <button id="chunkRequest" class="flex-1 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90">

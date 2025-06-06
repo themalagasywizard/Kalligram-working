@@ -14,10 +14,10 @@ module.exports = {
   DEFAULT_TEMPERATURE: 0.9,
   DEFAULT_TOP_P: 0.92,
   // Timeout settings
-  REQUEST_TIMEOUT: 30000, // 30 seconds
+  REQUEST_TIMEOUT: 120000, // 120 seconds (matches netlify.toml)
   // Usage limits
-  MAX_LENGTH_DEFAULT: 200,
-  MAX_LENGTH_LIMIT: 1000,
+  MAX_LENGTH_DEFAULT: 500,
+  MAX_LENGTH_LIMIT: 5000,
   FALLBACK_RESPONSE: 'I apologize, but I couldn\'t generate a response at this time. Please try again later.',
   HUGGING_FACE_MODELS: [
     'distilgpt2',
