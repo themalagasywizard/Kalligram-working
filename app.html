@@ -4062,10 +4062,13 @@
                     // Create AbortController for timeout handling with dynamic timeout
                     const controller = new AbortController();
                     const requestedWords = parseInt(length) || 500;
-                    // Calculate client timeout based on word count (slightly longer than server timeout)
-                    let clientTimeout = 45000; // Default 45 seconds
-                    if (requestedWords > 1000) clientTimeout = 90000; // 90 seconds for 1000+ words
-                    if (requestedWords > 2000) clientTimeout = 120000; // 120 seconds for 2000+ words
+                    // Calculate client timeout based on word count (longer than server timeout for safety)
+                    let clientTimeout = 60000; // Default 60 seconds
+                    if (requestedWords > 1000) clientTimeout = 120000; // 120 seconds for 1000+ words
+                    if (requestedWords > 2000) clientTimeout = 150000; // 150 seconds for 2000+ words
+                    if (requestedWords > 3000) clientTimeout = 180000; // 180 seconds for 3000+ words
+                    
+                    console.log(`Client timeout set to: ${clientTimeout}ms for ${requestedWords} words`);
                     const timeoutId = setTimeout(() => controller.abort(), clientTimeout);
                     
                     const response = await fetch(`/.netlify/functions/generate-text?model=${model}`, {

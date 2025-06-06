@@ -461,24 +461,25 @@ const timeoutPromise = (ms, message) => new Promise((_, reject) =>
 // Helper function to calculate dynamic timeout based on tokens and mode
 const calculateTimeout = (maxTokens, mode, isDeepSeekModel) => {
     // Netlify functions now have 120 seconds timeout configured in netlify.toml
-    const BASE_TIMEOUT = mode === 'chat' ? 15000 : 45000;   // 45 seconds base for generate mode
-    const MAX_TIMEOUT = 110000;   // 110 seconds maximum (leave 10s buffer for processing)
-    const MIN_TIMEOUT = mode === 'chat' ? 8000 : 15000;    // Minimum timeout
-    const MS_PER_TOKEN = mode === 'chat' ? 8 : 12;         // Optimized per-token time
+    const BASE_TIMEOUT = mode === 'chat' ? 15000 : 60000;   // 60 seconds base for generate mode
+    const MAX_TIMEOUT = 115000;   // 115 seconds maximum (leave 5s buffer for processing)
+    const MIN_TIMEOUT = mode === 'chat' ? 8000 : 20000;    // Minimum timeout
+    const MS_PER_TOKEN = mode === 'chat' ? 6 : 10;         // More aggressive per-token time
 
     // Calculate timeout based on estimated words for better scaling
     const estimatedWords = maxTokens / 1.3; // More accurate conversion back to words
     
-    if (estimatedWords > 2000) {
-        return MAX_TIMEOUT; // 110 seconds for 2000+ word requests
+    // For very long requests, use maximum timeout
+    if (estimatedWords > 1500) {
+        return MAX_TIMEOUT; // 115 seconds for 1500+ word requests
     }
     
     if (isDeepSeekModel) {
         // DeepSeek is generally faster, so use more aggressive scaling
-        const scaledTimeout = BASE_TIMEOUT + (maxTokens * (MS_PER_TOKEN * 0.8));
+        const scaledTimeout = BASE_TIMEOUT + (maxTokens * (MS_PER_TOKEN * 0.7));
         return Math.min(MAX_TIMEOUT, Math.max(MIN_TIMEOUT, scaledTimeout));
     } else {
-        // OpenRouter models vary in speed, so use more conservative scaling
+        // OpenRouter models - use longer timeouts for reliability
         const scaledTimeout = BASE_TIMEOUT + (maxTokens * MS_PER_TOKEN);
         return Math.min(MAX_TIMEOUT, Math.max(MIN_TIMEOUT, scaledTimeout));
     }
@@ -737,6 +738,9 @@ exports.handler = async (event) => {
         const maxTokens = wordsToTokens(desiredWords);
         const timeout = calculateTimeout(maxTokens, mode, isDeepSeekModel);
         
+        // Log the calculated values for debugging
+        console.log(`Request details: words=${desiredWords}, tokens=${maxTokens}, timeout=${timeout}ms, model=${modelName}`);
+        
         // Move the debugInfo creation here, after all variables are defined
         const debugInfo = {
             contextString,
@@ -755,6 +759,9 @@ exports.handler = async (event) => {
         const presencePenalty = mode === 'chat' ? 0.8 : 0.5; // Higher presence penalty for chat to reduce repetition
         const frequencyPenalty = mode === 'chat' ? 0.7 : 0.5; // Higher frequency penalty for chat to reduce repetition
 
+        // For very long requests, cap max_tokens to prevent API timeouts
+        const effectiveMaxTokens = desiredWords > 3000 ? Math.min(maxTokens, 4000) : maxTokens;
+        
         // Create request body with optimized settings for longer content
         const requestBody = isDeepSeekModel ? {
             model: modelName,
@@ -770,7 +777,7 @@ exports.handler = async (event) => {
             ],
             temperature: Math.min(temperature, 0.7), // Lower temperature for more focused output
             top_p: 0.9, // Slightly lower for better coherence
-            max_tokens: maxTokens,
+            max_tokens: effectiveMaxTokens,
             stream: false, // Disable streaming for better reliability
             presence_penalty: presencePenalty,
             frequency_penalty: frequencyPenalty,
@@ -789,7 +796,7 @@ exports.handler = async (event) => {
             ],
             temperature: Math.min(temperature, 0.7), // Lower temperature for more focused output
             top_p: 0.9, // Slightly lower for better coherence
-            max_tokens: maxTokens,
+            max_tokens: effectiveMaxTokens,
             stop: null  // Remove stop sequences that might truncate content
         };
 
@@ -812,15 +819,47 @@ exports.handler = async (event) => {
             headers['X-Title'] = 'AIStoryCraft';
         }
 
-        const response = await fetchWithTimeout(
-            apiUrl,
-            {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(requestBody)
-            },
-            timeout
-        );
+        let response;
+        let finalRequestBody = requestBody;
+        
+        try {
+            response = await fetchWithTimeout(
+                apiUrl,
+                {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(finalRequestBody)
+                },
+                timeout
+            );
+        } catch (error) {
+            // If the request fails and it's a long request, try with reduced tokens
+            if (desiredWords > 2000 && (error.message.includes('timed out') || error.message.includes('499'))) {
+                console.log(`Long request failed, retrying with reduced tokens: ${desiredWords} words`);
+                const reducedTokens = Math.floor(effectiveMaxTokens * 0.7); // Reduce by 30%
+                
+                finalRequestBody = isDeepSeekModel ? {
+                    ...requestBody,
+                    max_tokens: reducedTokens
+                } : {
+                    ...requestBody,
+                    max_tokens: reducedTokens
+                };
+                
+                // Try again with reduced tokens and longer timeout
+                response = await fetchWithTimeout(
+                    apiUrl,
+                    {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(finalRequestBody)
+                    },
+                    Math.min(timeout + 30000, 115000) // Add 30 seconds but cap at 115s
+                );
+            } else {
+                throw error; // Re-throw if not a long request or different error
+            }
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -908,7 +947,7 @@ exports.handler = async (event) => {
         
         if (error.message.includes('timed out') || error.name === 'AbortError') {
             statusCode = 408; // Request Timeout
-            errorMessage = 'Your request timed out. This might be due to high server load or a complex prompt. Try the following:\n1. Reduce the word count (length) parameter\n2. Use a simpler prompt\n3. Try again in a few minutes';
+            errorMessage = `Request timed out after ${timeout/1000} seconds. For requests over 2000 words, try: 1. Use DeepSeek model (faster) 2. Reduce complexity in your prompt 3. Try generating in 2000-word chunks 4. Wait a moment and retry`;
         } else if (error.message.includes('API key')) {
             statusCode = 401; // Unauthorized
             errorMessage = 'API key error: ' + error.message;
