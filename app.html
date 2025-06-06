@@ -433,6 +433,29 @@
         }
 
         /* AI Assistant Styles */
+        #aiAssistPanel {
+            transition: width 0.3s ease, opacity 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        #aiAssistPanel.ai-panel-collapsed {
+            width: 0;
+            min-width: 0;
+            overflow: hidden;
+            opacity: 0;
+        }
+
+        #aiAssistPanel.ai-panel-visible {
+            width: 400px;
+            min-width: 400px;
+            opacity: 1;
+        }
+
+        /* Ensure main content adjusts properly */
+        .main-content-area {
+            transition: margin-right 0.3s ease;
+        }
+
         .ai-mode-btn {
             transition: all 0.2s ease;
             flex: 1;
@@ -762,10 +785,20 @@
             }
 
             /* Adjust AI Assistant panel for mobile */
-            #aiAssistPanel {
+            #aiAssistPanel.ai-panel-visible {
                 width: 100%;
                 min-width: 100%;
                 max-width: 100%;
+                position: fixed;
+                top: 56px;
+                right: 0;
+                z-index: 60;
+                height: calc(100vh - 56px);
+            }
+            
+            #aiAssistPanel.ai-panel-collapsed {
+                width: 0;
+                min-width: 0;
             }
             
             /* Make sure AI output and chat history are scrollable on mobile */
@@ -2271,10 +2304,10 @@
                 </div>
             </div>
                 
-                <!-- AI Assistant Button (right-aligned) -->
-                <button id="aiAssistBtn" class="btn btn-primary text-sm transform transition-transform hover:scale-105 active:scale-95 ml-auto">
+                <!-- AI Assistant Toggle Button (right-aligned) -->
+                <button id="aiToggleBtn" class="btn btn-primary text-sm transform transition-transform hover:scale-105 active:scale-95 ml-auto">
                     <i class="fas fa-robot mr-2"></i>
-                    <span>AI Assist</span>
+                    <span class="ai-toggle-text">Hide AI</span>
                 </button>
                 
                 <!-- Full Screen button -->
@@ -2282,147 +2315,6 @@
                     <i class="fas fa-expand"></i>
                 </button>
         </div>
-
-            <!-- AI Assistant Panel -->
-            <div id="aiAssistPanel" class="fixed right-0 top-0 h-screen w-[400px] bg-card shadow-md-custom transform translate-x-full transition-transform duration-300 z-50 flex flex-col" role="complementary" aria-label="AI Assistant">
-                <!-- Panel Header -->
-                <div class="flex-shrink-0 p-4 border-b border-adaptive">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-primary">AI Assistant</h2>
-                        <button id="closeAiPanel" class="text-gray-400 hover:text-gray-600">
-                            <i class="fas fa-times"></i>
-                        </button>
-            </div>
-
-                    <!-- Mode Toggle -->
-                    <div class="flex space-x-1 bg-surface p-1 rounded-lg mb-3">
-                        <button class="ai-mode-btn flex-1 py-1 px-2 text-sm font-medium rounded active" data-mode="generate">Generate</button>
-                        <button class="ai-mode-btn flex-1 py-1 px-2 text-sm font-medium rounded" data-mode="chat">Chat</button>
-                    </div>
-                    
-                    <!-- Model Selector -->
-                    <select id="aiModel" class="w-full bg-primaryLight text-primary rounded-lg p-2 text-sm">
-                        <!-- DeepSeek Model -->
-                        <option value="deepseek-chat">DeepSeek Chat (V3) - Featured</option>
-                        
-                        <option disabled>──────── Claude 3 Models ────────</option>
-                        <!-- Claude 3 Models via OpenRouter -->
-                        <option value="claude-opus">Claude 3 Opus - Most Powerful</option>
-                        <option value="claude-sonnet">Claude 3 Sonnet - Ultra Balanced</option>
-                        
-                        <option disabled>──────── Free Models ────────</option>
-                        <!-- Free Models via OpenRouter -->
-                        <option value="qwen3-235b">QWEN3 235B - Powerful & Free</option>
-                    </select>
-                </div>
-
-                <!-- Context Selection Panel -->
-                <div class="flex-shrink-0 bg-primaryLight/20 p-3 border-b border-adaptive">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-medium text-secondary">Story Context</span>
-                        <button id="toggleContextBtn" class="text-xs text-primary hover:text-primary/80">
-                            <i class="fas fa-chevron-down mr-1"></i>Show/Hide
-                        </button>
-                    </div>
-                    
-                    <!-- Selected context items summary -->
-                    <div id="contextSummary" class="text-sm text-primary mt-1">
-                        No context items selected
-                    </div>
-                    
-                    <!-- Context selection panel (collapsed by default) -->
-                    <div id="contextSelectionPanel" class="hidden mt-3 border-t border-adaptive pt-3">
-                        <!-- Characters section -->
-                        <div class="mb-3">
-                            <h3 class="text-xs font-medium text-secondary mb-1">Characters</h3>
-                            <div id="characterContextItems" class="space-y-1 max-h-24 overflow-y-auto">
-                                <div class="text-xs text-gray-500 italic">Loading characters...</div>
-                            </div>
-                        </div>
-                        
-                        <!-- Locations section -->
-                        <div class="mb-3">
-                            <h3 class="text-xs font-medium text-secondary mb-1">Locations</h3>
-                            <div id="locationContextItems" class="space-y-1 max-h-24 overflow-y-auto">
-                                <div class="text-xs text-gray-500 italic">Loading locations...</div>
-                            </div>
-                        </div>
-                        
-                        <!-- Timeline events section -->
-                        <div>
-                            <h3 class="text-xs font-medium text-secondary mb-1">Timeline Events</h3>
-                            <div id="timelineContextItems" class="space-y-1 max-h-24 overflow-y-auto">
-                                <div class="text-xs text-gray-500 italic">Loading events...</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Chat View -->
-                <div id="chatView" class="flex-1 flex flex-col hidden overflow-hidden">
-                    <!-- Chat History (now at top) -->
-                    <div id="chatHistory" class="flex-1 overflow-y-auto">
-                        <!-- Example messages will be added here -->
-                    </div>
-                    
-                    <!-- Chat Input (now at bottom) -->
-                    <div class="flex-shrink-0 p-4 border-t border-adaptive">
-                        <div class="relative">
-                            <textarea id="chatInput" class="w-full min-h-[100px] max-h-[200px] border border-adaptive rounded-lg p-3 pr-10 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Ask the AI..."></textarea>
-                            <button id="chatSubmit" class="absolute right-3 top-3 text-primary hover:text-primary/80 disabled:opacity-50">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-            </div>
-
-                        <!-- Token usage info for DeepSeek models -->
-                        <div id="tokenUsageInfo" class="text-xs text-gray-500 mt-2 hidden">
-                            <span>Token usage: <span id="promptTokens">0</span> prompt + <span id="completionTokens">0</span> completion = <span id="totalTokens">0</span> total</span>
-                </div>
-            </div>
-        </div>
-
-                <!-- Generate/Edit View -->
-                <div id="generateEditView" class="flex-1 flex flex-col overflow-hidden">
-                    <!-- Output Area (now at top) -->
-                    <div id="aiOutput" class="flex-1 bg-surface rounded-lg m-4 p-6 overflow-y-auto">
-                        <p class="text-secondary-adaptive text-sm italic">AI output will appear here...</p>
-            </div>
-
-                    <!-- Controls (in middle) -->
-                    <div class="flex-shrink-0 space-y-3 px-4">
-                        <div>
-                            <label class="text-sm font-medium block mb-2">Tone</label>
-                            <select id="aiTone" class="w-full border border-adaptive rounded-lg p-2 text-sm">
-                                <option>Suspenseful</option>
-                                <option>Humorous</option>
-                                <option>Dramatic</option>
-                                <option>Reflective</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium block mb-2">Length</label>
-                            <div class="flex items-center space-x-2">
-                                <span class="text-xs text-gray-500">50</span>
-                                <input type="range" id="aiLength" min="50" max="1500" value="300" class="flex-grow">
-                                <span class="text-xs text-gray-500">1500</span>
-                            </div>
-                            <div class="text-center mt-1">
-                                <span class="text-xs font-medium text-primary" id="aiLengthDisplay">300 words</span>
-                            </div>
-                        </div>
-                </div>
-
-                    <!-- Input Area (now at bottom) -->
-                    <div class="flex-shrink-0 p-4 border-t border-adaptive">
-                        <div class="relative">
-                            <textarea id="aiInput" class="w-full min-h-[100px] max-h-[200px] border border-adaptive rounded-lg p-3 pr-10 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Write a scene with Jane..."></textarea>
-                            <button id="aiSubmit" class="absolute right-3 top-3 text-primary hover:text-primary/80 disabled:opacity-50">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                </div>
 
             <!-- Mobile Overlay (shown on small screens) -->
             <div id="aiMobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
@@ -2440,6 +2332,147 @@
                 </div>
             </div>
         </main>
+
+        <!-- AI Assistant Panel -->
+        <aside id="aiAssistPanel" class="w-[400px] h-full bg-card shadow-md-custom border-l border-adaptive flex flex-col ai-panel-visible" role="complementary" aria-label="AI Assistant">
+            <!-- Panel Header -->
+            <div class="flex-shrink-0 p-4 border-b border-adaptive">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-primary">AI Assistant</h2>
+                    <button id="collapseAiPanel" class="text-gray-400 hover:text-gray-600" title="Collapse AI Panel">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <!-- Mode Toggle -->
+                <div class="flex space-x-1 bg-surface p-1 rounded-lg mb-3">
+                    <button class="ai-mode-btn flex-1 py-1 px-2 text-sm font-medium rounded active" data-mode="generate">Generate</button>
+                    <button class="ai-mode-btn flex-1 py-1 px-2 text-sm font-medium rounded" data-mode="chat">Chat</button>
+                </div>
+                
+                <!-- Model Selector -->
+                <select id="aiModel" class="w-full bg-primaryLight text-primary rounded-lg p-2 text-sm">
+                    <!-- DeepSeek Model -->
+                    <option value="deepseek-chat">DeepSeek Chat (V3) - Featured</option>
+                    
+                    <option disabled>──────── Claude 3 Models ────────</option>
+                    <!-- Claude 3 Models via OpenRouter -->
+                    <option value="claude-opus">Claude 3 Opus - Most Powerful</option>
+                    <option value="claude-sonnet">Claude 3 Sonnet - Ultra Balanced</option>
+                    
+                    <option disabled>──────── Free Models ────────</option>
+                    <!-- Free Models via OpenRouter -->
+                    <option value="qwen3-235b">QWEN3 235B - Powerful & Free</option>
+                </select>
+            </div>
+
+            <!-- Context Selection Panel -->
+            <div class="flex-shrink-0 bg-primaryLight/20 p-3 border-b border-adaptive">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-secondary">Story Context</span>
+                    <button id="toggleContextBtn" class="text-xs text-primary hover:text-primary/80">
+                        <i class="fas fa-chevron-down mr-1"></i>Show/Hide
+                    </button>
+                </div>
+                
+                <!-- Selected context items summary -->
+                <div id="contextSummary" class="text-sm text-primary mt-1">
+                    No context items selected
+                </div>
+                
+                <!-- Context selection panel (collapsed by default) -->
+                <div id="contextSelectionPanel" class="hidden mt-3 border-t border-adaptive pt-3">
+                    <!-- Characters section -->
+                    <div class="mb-3">
+                        <h3 class="text-xs font-medium text-secondary mb-1">Characters</h3>
+                        <div id="characterContextItems" class="space-y-1 max-h-24 overflow-y-auto">
+                            <div class="text-xs text-gray-500 italic">Loading characters...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Locations section -->
+                    <div class="mb-3">
+                        <h3 class="text-xs font-medium text-secondary mb-1">Locations</h3>
+                        <div id="locationContextItems" class="space-y-1 max-h-24 overflow-y-auto">
+                            <div class="text-xs text-gray-500 italic">Loading locations...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Timeline events section -->
+                    <div>
+                        <h3 class="text-xs font-medium text-secondary mb-1">Timeline Events</h3>
+                        <div id="timelineContextItems" class="space-y-1 max-h-24 overflow-y-auto">
+                            <div class="text-xs text-gray-500 italic">Loading events...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat View -->
+            <div id="chatView" class="flex-1 flex flex-col hidden overflow-hidden">
+                <!-- Chat History (now at top) -->
+                <div id="chatHistory" class="flex-1 overflow-y-auto">
+                    <!-- Example messages will be added here -->
+                </div>
+                
+                <!-- Chat Input (now at bottom) -->
+                <div class="flex-shrink-0 p-4 border-t border-adaptive">
+                    <div class="relative">
+                        <textarea id="chatInput" class="w-full min-h-[100px] max-h-[200px] border border-adaptive rounded-lg p-3 pr-10 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Ask the AI..."></textarea>
+                        <button id="chatSubmit" class="absolute right-3 top-3 text-primary hover:text-primary/80 disabled:opacity-50">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+
+                    <!-- Token usage info for DeepSeek models -->
+                    <div id="tokenUsageInfo" class="text-xs text-gray-500 mt-2 hidden">
+                        <span>Token usage: <span id="promptTokens">0</span> prompt + <span id="completionTokens">0</span> completion = <span id="totalTokens">0</span> total</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generate/Edit View -->
+            <div id="generateEditView" class="flex-1 flex flex-col overflow-hidden">
+                <!-- Output Area (now at top) -->
+                <div id="aiOutput" class="flex-1 bg-surface rounded-lg m-4 p-6 overflow-y-auto">
+                    <p class="text-secondary-adaptive text-sm italic">AI output will appear here...</p>
+                </div>
+
+                <!-- Controls (in middle) -->
+                <div class="flex-shrink-0 space-y-3 px-4">
+                    <div>
+                        <label class="text-sm font-medium block mb-2">Tone</label>
+                        <select id="aiTone" class="w-full border border-adaptive rounded-lg p-2 text-sm">
+                            <option>Suspenseful</option>
+                            <option>Humorous</option>
+                            <option>Dramatic</option>
+                            <option>Reflective</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium block mb-2">Length</label>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs text-gray-500">50</span>
+                            <input type="range" id="aiLength" min="50" max="1500" value="300" class="flex-grow">
+                            <span class="text-xs text-gray-500">1500</span>
+                        </div>
+                        <div class="text-center mt-1">
+                            <span class="text-xs font-medium text-primary" id="aiLengthDisplay">300 words</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area (now at bottom) -->
+                <div class="flex-shrink-0 p-4 border-t border-adaptive">
+                    <div class="relative">
+                        <textarea id="aiInput" class="w-full min-h-[100px] max-h-[200px] border border-adaptive rounded-lg p-3 pr-10 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" placeholder="Write a scene with Jane..."></textarea>
+                        <button id="aiSubmit" class="absolute right-3 top-3 text-primary hover:text-primary/80 disabled:opacity-50">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
     </div>
 
     <!-- AI Preview Modal (Hidden by default) -->
@@ -3511,9 +3544,9 @@
             }
 
             // AI Assistant Panel Functionality
-            const aiAssistBtn = document.getElementById('aiAssistBtn');
+            const aiToggleBtn = document.getElementById('aiToggleBtn');
             const aiAssistPanel = document.getElementById('aiAssistPanel');
-            const closeAiPanel = document.getElementById('closeAiPanel');
+            const collapseAiPanel = document.getElementById('collapseAiPanel');
             const aiMobileOverlay = document.getElementById('aiMobileOverlay');
             const modeButtons = document.querySelectorAll('.ai-mode-btn');
             const generateEditView = document.getElementById('generateEditView');
@@ -3525,36 +3558,52 @@
             const chatHistory = document.getElementById('chatHistory');
             const aiToast = document.getElementById('aiToast');
             const aiModel = document.getElementById('aiModel');
+            const aiToggleText = document.querySelector('.ai-toggle-text');
             
             let currentMode = 'generate';
             
             // Toggle AI Panel
             function toggleAiPanel() {
-                const isOpen = aiAssistPanel.classList.contains('translate-x-0');
-                aiAssistPanel.classList.toggle('translate-x-0');
-                aiAssistPanel.classList.toggle('translate-x-full');
-                aiMobileOverlay.classList.toggle('hidden');
+                const isVisible = aiAssistPanel.classList.contains('ai-panel-visible');
                 
-                // Initialize the context panel when AI panel is opened
-                if (!isOpen) {
+                if (isVisible) {
+                    // Hide panel
+                    aiAssistPanel.classList.remove('ai-panel-visible');
+                    aiAssistPanel.classList.add('ai-panel-collapsed');
+                    if (aiToggleText) aiToggleText.textContent = 'Show AI';
+                    if (collapseAiPanel) {
+                        collapseAiPanel.querySelector('i').className = 'fas fa-chevron-left';
+                        collapseAiPanel.title = 'Expand AI Panel';
+                    }
+                } else {
+                    // Show panel
+                    aiAssistPanel.classList.remove('ai-panel-collapsed');
+                    aiAssistPanel.classList.add('ai-panel-visible');
+                    if (aiToggleText) aiToggleText.textContent = 'Hide AI';
+                    if (collapseAiPanel) {
+                        collapseAiPanel.querySelector('i').className = 'fas fa-chevron-right';
+                        collapseAiPanel.title = 'Collapse AI Panel';
+                    }
+                    
+                    // Initialize the context panel when AI panel is opened
                     if (!aiAssistPanel.__contextInitialized) {
                         initContextPanel();
                         aiAssistPanel.__contextInitialized = true;
                     }
                 }
                 
-                // Remove the auto-focus
-                /* if (!isOpen) {
-                    if (currentMode === 'generate') {
-                        aiInput.focus();
-                    } else if (currentMode === 'chat') {
-                        chatInput.focus();
+                // Handle mobile overlay
+                if (window.innerWidth <= 768) {
+                    if (isVisible) {
+                        aiMobileOverlay.classList.add('hidden');
+                    } else {
+                        aiMobileOverlay.classList.remove('hidden');
                     }
-                } */
+                }
             }
             
-            aiAssistBtn.addEventListener('click', toggleAiPanel);
-            closeAiPanel.addEventListener('click', toggleAiPanel);
+            aiToggleBtn.addEventListener('click', toggleAiPanel);
+            collapseAiPanel.addEventListener('click', toggleAiPanel);
             aiMobileOverlay.addEventListener('click', toggleAiPanel);
             
             // Mode Switching
@@ -5334,6 +5383,18 @@
                 streamNextChunk();
             }, 500);
         }
+        
+        // Initialize AI panel on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize context panel since AI panel is visible by default
+            if (typeof initContextPanel === 'function') {
+                initContextPanel();
+                const aiAssistPanel = document.getElementById('aiAssistPanel');
+                if (aiAssistPanel) {
+                    aiAssistPanel.__contextInitialized = true;
+                }
+            }
+        });
     </script>
 </body>
 </html> 
